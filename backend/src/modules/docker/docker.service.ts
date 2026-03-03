@@ -145,7 +145,28 @@ export class DockerService {
 
   async startContainer(containerId: string): Promise<void> {
     const container = this.docker.getContainer(containerId);
-    await container.start();
+    try {
+      await container.start();
+    } catch (err: any) {
+      if (err?.statusCode === 304 || err?.message?.includes('already started')) {
+        return; // Already running
+      }
+      throw err;
+    }
+  }
+
+  /** Find container by exact name (returns id or null). */
+  async findContainerByName(name: string): Promise<string | null> {
+    const list = await this.docker.listContainers({
+      all: true,
+      filters: { name: [name] },
+    });
+    if (!list?.length) return null;
+    const target = name.startsWith('/') ? name : `/${name}`;
+    const match = list.find((c: any) =>
+      (c.Names || []).some((n: string) => n === target || n === name),
+    );
+    return match?.Id ?? null;
   }
 
   async stopContainer(containerId: string): Promise<void> {

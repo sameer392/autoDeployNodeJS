@@ -198,6 +198,24 @@ export class ProjectsService {
       relations: ['domains', 'envVars'],
     });
     if (!project) throw new NotFoundException('Project not found');
+    // Sync from Docker if building but container exists (fixes UI/DB drift)
+    if (project.status === 'building' && !project.containerId) {
+      const containerId = await this.dockerService.findContainerByName(project.slug);
+      if (containerId) {
+        const state = await this.dockerService.getContainerState(containerId);
+        await this.projectRepo.update(id, {
+          containerId,
+          imageName: project.imageName || `hosting-${project.slug}`,
+          status: state === 'running' ? 'running' : 'stopped',
+          errorMessage: null,
+        });
+        const updated = await this.projectRepo.findOne({
+          where: { id, adminId: admin.id },
+          relations: ['domains', 'envVars'],
+        });
+        return updated ?? project;
+      }
+    }
     return project;
   }
 
@@ -226,24 +244,48 @@ export class ProjectsService {
 
   async start(admin: Admin, id: number): Promise<{ message: string }> {
     const project = await this.findOne(admin, id);
-    if (!project.containerId) throw new BadRequestException('Container not created yet');
-    await this.dockerService.startContainer(project.containerId);
+    let containerId = project.containerId;
+    if (!containerId) {
+      containerId = await this.dockerService.findContainerByName(project.slug);
+      if (containerId) {
+        await this.projectRepo.update(id, { containerId, imageName: project.imageName || `hosting-${project.slug}` });
+      } else {
+        throw new BadRequestException('Container not created yet');
+      }
+    }
+    await this.dockerService.startContainer(containerId);
     await this.projectRepo.update(id, { status: 'running', errorMessage: null });
     return { message: 'Container started' };
   }
 
   async stop(admin: Admin, id: number): Promise<{ message: string }> {
     const project = await this.findOne(admin, id);
-    if (!project.containerId) throw new BadRequestException('Container not created yet');
-    await this.dockerService.stopContainer(project.containerId);
+    let containerId = project.containerId;
+    if (!containerId) {
+      containerId = await this.dockerService.findContainerByName(project.slug);
+      if (containerId) {
+        await this.projectRepo.update(id, { containerId, imageName: project.imageName || `hosting-${project.slug}` });
+      } else {
+        throw new BadRequestException('Container not created yet');
+      }
+    }
+    await this.dockerService.stopContainer(containerId);
     await this.projectRepo.update(id, { status: 'stopped' });
     return { message: 'Container stopped' };
   }
 
   async restart(admin: Admin, id: number): Promise<{ message: string }> {
     const project = await this.findOne(admin, id);
-    if (!project.containerId) throw new BadRequestException('Container not created yet');
-    await this.dockerService.restartContainer(project.containerId);
+    let containerId = project.containerId;
+    if (!containerId) {
+      containerId = await this.dockerService.findContainerByName(project.slug);
+      if (containerId) {
+        await this.projectRepo.update(id, { containerId, imageName: project.imageName || `hosting-${project.slug}` });
+      } else {
+        throw new BadRequestException('Container not created yet');
+      }
+    }
+    await this.dockerService.restartContainer(containerId);
     await this.projectRepo.update(id, { status: 'running', errorMessage: null });
     return { message: 'Container restarted' };
   }
