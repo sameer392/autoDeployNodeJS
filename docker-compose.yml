@@ -70,18 +70,17 @@ services:
   supabase-init:
     image: alpine/git
     container_name: hosting-supabase-init
+    entrypoint: ["/bin/sh", "-c"]
     volumes:
       - ./infra:/infra
     command: >
-      sh -c "
-        if [ ! -d /infra/supabase/supabase/.git ]; then
-          echo 'Cloning Supabase repo (first time only, may take 5–10 min)...';
-          git clone --depth 1 https://github.com/supabase/supabase.git /infra/supabase/supabase;
-          echo 'Done.';
-        else
-          echo 'Supabase repo already present.';
-        fi
-      "
+      if [ ! -d /infra/supabase/supabase/.git ]; then
+        echo 'Cloning Supabase repo (first time only, may take 5–10 min)...';
+        git clone --depth 1 https://github.com/supabase/supabase.git /infra/supabase/supabase;
+        echo 'Done.';
+      else
+        echo 'Supabase repo already present.';
+      fi
     networks:
       - hosting_network
 
