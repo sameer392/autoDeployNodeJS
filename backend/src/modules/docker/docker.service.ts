@@ -3,7 +3,8 @@ import { Injectable, Logger } from '@nestjs/common';
 const Docker = require('dockerode');
 import { Readable } from 'stream';
 import * as path from 'path';
-import archiver from 'archiver';
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const archiver = require('archiver') as (format: string, options?: object) => { directory: (path: string, opts?: object | boolean) => void; finalize: () => void };
 import {
   PORT_MIN,
   PORT_MAX,
