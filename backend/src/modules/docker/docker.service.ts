@@ -39,7 +39,7 @@ export interface ContainerStats {
 @Injectable()
 export class DockerService {
   private readonly logger = new Logger(DockerService.name);
-  private docker: InstanceType<typeof Docker>;
+  private docker: any;
 
   constructor() {
     const socketPath = process.env.DOCKER_SOCKET_PATH || '/var/run/docker.sock';
