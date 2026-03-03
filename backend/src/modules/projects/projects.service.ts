@@ -306,6 +306,12 @@ export class ProjectsService {
         // ignore
       }
     }
+    const dataVolumeName = `hosting-data-${project.slug}`;
+    try {
+      await this.dockerService.removeVolume(dataVolumeName);
+    } catch {
+      // ignore (volume may not exist for older projects)
+    }
     await this.projectRepo.update(id, { status: 'deleted', containerId: null });
     return { message: 'Project removed' };
   }

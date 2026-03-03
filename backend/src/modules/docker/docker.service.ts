@@ -22,6 +22,8 @@ export interface ContainerCreateOptions {
   env?: Record<string, string>;
   domains?: string[];
   traefikNetwork?: string;
+  /** Persistent data volume name (mounts at /data). Survives rebuilds until project delete. */
+  dataVolumeName?: string;
 }
 
 export interface ContainerStats {
@@ -122,18 +124,23 @@ export class DockerService {
       labels['traefik.http.routers.' + opts.name + '.tls.certresolver'] = 'letsencrypt';
     }
 
+    const hostConfig: Record<string, unknown> = {
+      Memory: memoryBytes,
+      NanoCpus: nanoCpus,
+      SecurityOpt: ['no-new-privileges:true'],
+      NetworkMode: opts.traefikNetwork || TRAEFIK_NETWORK,
+      RestartPolicy: { Name: 'unless-stopped' },
+    };
+    if (opts.dataVolumeName) {
+      hostConfig.Binds = [`${opts.dataVolumeName}:/data`];
+    }
+
     const createOpts = {
       Image: opts.image,
       name: opts.name,
       Env: env,
       Labels: labels,
-      HostConfig: {
-        Memory: memoryBytes,
-        NanoCpus: nanoCpus,
-        SecurityOpt: ['no-new-privileges:true'],
-        NetworkMode: opts.traefikNetwork || TRAEFIK_NETWORK,
-        RestartPolicy: { Name: 'unless-stopped' },
-      },
+      HostConfig: hostConfig,
       ExposedPorts: {
         [`${opts.internalPort}/tcp`]: {},
       },
@@ -276,6 +283,15 @@ export class DockerService {
       await image.remove();
     } catch (e) {
       this.logger.warn(`Could not remove image ${img}: ${e}`);
+    }
+  }
+
+  async removeVolume(volumeName: string): Promise<void> {
+    try {
+      const volume = this.docker.getVolume(volumeName);
+      await volume.remove();
+    } catch (e) {
+      this.logger.warn(`Could not remove volume ${volumeName}: ${e}`);
     }
   }
 }

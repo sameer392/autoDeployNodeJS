@@ -35,15 +35,19 @@ FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV PERSISTENT_DATA_DIR=/data
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
+RUN mkdir -p /data
+RUN echo '#!/bin/sh' > /entrypoint.sh && echo 'chown -R 1001:1001 /data 2>/dev/null || true' >> /entrypoint.sh && echo 'exec gosu 1001 "$@"' >> /entrypoint.sh && chmod +x /entrypoint.sh
+RUN apk add --no-cache gosu
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-USER nextjs
 EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["node", "server.js"]
 `;
 
@@ -64,6 +68,8 @@ FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV PERSISTENT_DATA_DIR=/data
+RUN mkdir -p /data
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/.next ./.next
@@ -88,6 +94,8 @@ RUN npm run build
 FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
+ENV PERSISTENT_DATA_DIR=/data
+RUN mkdir -p /data
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/dist ./dist
@@ -105,6 +113,7 @@ COPY . .
 RUN npm run build
 
 FROM nginx:alpine AS runner
+RUN mkdir -p /data
 COPY --from=builder /app/dist /usr/share/nginx/html
 RUN echo 'server { listen 80; root /usr/share/nginx/html; index index.html; location / { try_files $uri $uri/ /index.html; } }' > /etc/nginx/conf.d/default.conf
 EXPOSE 80
@@ -120,6 +129,7 @@ COPY . .
 RUN npm run build
 
 FROM nginx:alpine AS runner
+RUN mkdir -p /data
 COPY --from=builder /app/build /usr/share/nginx/html
 RUN echo 'server { listen 80; root /usr/share/nginx/html; index index.html; location / { try_files $uri $uri/ /index.html; } }' > /etc/nginx/conf.d/default.conf
 EXPOSE 80
@@ -131,6 +141,8 @@ function getExpressDockerfile(hasStartScript: boolean): string {
   return `# Auto-generated for Node.js / Express
 FROM node:20-alpine
 WORKDIR /app
+ENV PERSISTENT_DATA_DIR=/data
+RUN mkdir -p /data
 COPY package*.json ./
 RUN npm ci --omit=dev
 COPY . .

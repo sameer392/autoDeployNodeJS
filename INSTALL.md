@@ -88,6 +88,11 @@ The panel will:
 - Auto-detect project type and generate a Dockerfile if needed
 - Configure Traefik routing (if domain provided)
 - Obtain SSL certificate via Let's Encrypt
+- Mount a persistent data volume at `/data` (survives rebuilds until project delete)
+
+## Data Persistence
+
+Each project gets a dedicated Docker volume (`hosting-data-{slug}`) mounted at `/data` inside the container. Data stored under `/data` persists across container rebuilds and restarts. Use the `PERSISTENT_DATA_DIR` env var (set to `/data`) in your app for uploads, SQLite, or other local storage. The volume is removed only when you delete the project.
 
 ## Directory Structure
 

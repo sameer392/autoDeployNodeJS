@@ -53,7 +53,9 @@ export class ProjectBuildProcessor extends WorkerHost {
         (msg) => this.logger.debug(`[${project.slug}] ${msg}`),
       );
 
-      const env: Record<string, string> = {};
+      const env: Record<string, string> = {
+        PERSISTENT_DATA_DIR: '/data',
+      };
       for (const ev of project.envVars || []) {
         env[ev.key] = ev.value;
       }
@@ -62,6 +64,7 @@ export class ProjectBuildProcessor extends WorkerHost {
         .map((d) => d.domain)
         .filter(Boolean);
 
+      const dataVolumeName = `hosting-data-${project.slug}`;
       const containerId = await this.dockerService.createContainer({
         image: `${imageName}:${imageTag}`,
         name: project.slug,
@@ -71,6 +74,7 @@ export class ProjectBuildProcessor extends WorkerHost {
         env: Object.keys(env).length ? env : undefined,
         domains: domains.length ? domains : undefined,
         traefikNetwork: TRAEFIK_NETWORK,
+        dataVolumeName,
       });
 
       await this.dockerService.startContainer(containerId);
