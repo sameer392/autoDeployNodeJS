@@ -95,7 +95,7 @@ services:
     networks:
       - hosting_network
 
-  # Frontend
+  # Frontend (panel UI)
   frontend:
     build:
       context: ./frontend
@@ -104,8 +104,10 @@ services:
     restart: unless-stopped
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.panel.rule=Host(`${PANEL_DOMAIN:-panel.localhost}`)"
+      - "traefik.docker.network=hosting_network"
+      - "traefik.http.routers.panel.rule=Host(\`${PANEL_DOMAIN:-panel.localhost}\`)"
       - "traefik.http.routers.panel.entrypoints=websecure,web"
+      - "traefik.http.routers.panel.service=panel"
       - "traefik.http.routers.panel.tls=true"
       - "traefik.http.routers.panel.tls.certresolver=letsencrypt"
       - "traefik.http.services.panel.loadbalancer.server.port=80"
