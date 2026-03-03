@@ -126,4 +126,7 @@ CREATE TABLE IF NOT EXISTS `port_allocations` (
 
 SET FOREIGN_KEY_CHECKS = 1;
 
--- Default admin created via backend seed (password: Admin123!)
+-- Default admin (password: Admin123!) - created automatically on fresh install
+INSERT INTO `admins` (`email`, `password_hash`, `name`, `role`) VALUES
+('admin@localhost', '$2b$10$/cUrcOc3RFatqEnjkCHf4udOY82FBtTXTfwhNhf/ffK7oP9/JyERm', 'Admin', 'super_admin')
+ON DUPLICATE KEY UPDATE `email` = `email`;

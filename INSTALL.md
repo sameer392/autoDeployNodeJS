@@ -56,10 +56,14 @@ Wait for MySQL to be healthy (~30s), then the backend will start and seed the de
 
 ## Default Login
 
+The default admin is created automatically during installation:
+
 - **Email:** admin@localhost
 - **Password:** Admin123!
 
 **Change this immediately after first login.**
+
+*Note: On a fresh install, the admin is created by the database init script. If you upgraded from an older setup or the DB already existed, run the manual insert from the [Troubleshooting](#troubleshooting) section.*
 
 ## Access
 
@@ -118,6 +122,15 @@ The panel will:
 ### Container won't start
 - Check backend logs: `docker logs hosting-backend`
 - Ensure Docker socket is accessible: `ls -la /var/run/docker.sock`
+
+### Login failed / No admin account
+If the default admin wasn't created (e.g. upgrade from older setup), create it manually:
+
+```bash
+docker exec hosting-mysql mysql -u hosting -pYOUR_DB_PASSWORD hosting_panel -e 'INSERT INTO admins (email, password_hash, name, role, is_active) VALUES ("admin@localhost", "$2b$10$/cUrcOc3RFatqEnjkCHf4udOY82FBtTXTfwhNhf/ffK7oP9/JyERm", "Admin", "super_admin", 1);'
+```
+
+Replace `YOUR_DB_PASSWORD` with your MYSQL_PASSWORD from .env. Default login: admin@localhost / Admin123!
 
 ## Development
 
