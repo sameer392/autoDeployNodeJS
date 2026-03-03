@@ -2,7 +2,6 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
-  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Not } from 'typeorm';
@@ -11,7 +10,7 @@ import { Queue } from 'bullmq';
 import { Repository } from 'typeorm';
 import * as path from 'path';
 import * as fs from 'fs/promises';
-import * as AdmZip from 'adm-zip';
+import AdmZip from 'adm-zip';
 
 import { Project } from '../../database/entities/project.entity';
 import { ProjectEnvVar } from '../../database/entities/project-env-var.entity';
@@ -145,7 +144,7 @@ export class ProjectsService {
     return this.findOne(admin, project.id);
   }
 
-  async findAll(admin: Admin): Promise<Project[]> { {
+  async findAll(admin: Admin): Promise<Project[]> {
     return this.projectRepo.find({
       where: { adminId: admin.id, status: Not('deleted') },
       relations: ['domains', 'envVars'],

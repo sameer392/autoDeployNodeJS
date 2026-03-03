@@ -58,7 +58,7 @@ export class DockerGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.subscriptions.get(client.id)?.delete(payload.containerId);
   }
 
-  broadcastStats(containerId: string, stats: unknown) {
+  broadcastStats(containerId: string, stats: Record<string, unknown>) {
     this.server.emit('stats', { containerId, ...stats });
   }
 }

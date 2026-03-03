@@ -73,17 +73,17 @@ export class DockerService {
           dockerfile: path.basename(dockerfilePath),
           forcerm: true,
         },
-        (err, stream) => {
+        (err: Error | null, stream: NodeJS.ReadableStream | undefined) => {
           if (err) return reject(err);
           if (!stream) return reject(new Error('No build stream'));
 
           this.docker.modem.followProgress(
             stream,
-            (err) => {
+            (err: Error | undefined) => {
               if (err) reject(err);
               else resolve();
             },
-            (event) => {
+            (event: { stream?: string; status?: string }) => {
               const msg = event.stream || event.status || JSON.stringify(event);
               onProgress?.(msg);
             },
