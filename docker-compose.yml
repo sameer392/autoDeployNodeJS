@@ -99,6 +99,22 @@ services:
     networks:
       - hosting_network
 
+  # phpMyAdmin - MySQL management UI (http://your-server:8080)
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: hosting-phpmyadmin
+    restart: unless-stopped
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      UPLOAD_LIMIT: 64M
+    depends_on:
+      - mysql
+    networks:
+      - hosting_network
+    ports:
+      - "8080:80"
+
   # Frontend (panel UI)
   frontend:
     build:
