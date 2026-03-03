@@ -56,12 +56,15 @@ export class ProjectsService {
   }
 
   async create(admin: Admin, dto: CreateProjectDto, skipBuild = false): Promise<Project> {
-    if (!/^[a-z0-9][a-z0-9-_]{2,62}$/.test(dto.name)) {
+    const baseSlug = this.slugFromName(dto.name);
+    if (!baseSlug || baseSlug.length < 2) {
       throw new BadRequestException(
-        'Project name must be 3-63 chars, alphanumeric with hyphens/underscores',
+        'Project name must have at least 2 letters or numbers (e.g. "My App", "bolt3")',
       );
     }
-    const baseSlug = this.slugFromName(dto.name);
+    if (baseSlug.length > 61) {
+      throw new BadRequestException('Project name is too long');
+    }
     let slug = `project-${baseSlug}`;
     let suffix = 0;
     while (await this.projectRepo.findOne({ where: { slug } })) {

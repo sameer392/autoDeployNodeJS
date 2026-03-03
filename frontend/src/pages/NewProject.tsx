@@ -50,8 +50,7 @@ export default function NewProject() {
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="my-website"
-            pattern="[a-z0-9][a-z0-9-_]{2,62}"
+            placeholder="My App or bolt3"
           />
         </label>
         <label>
