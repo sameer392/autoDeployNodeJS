@@ -127,6 +127,21 @@ STUDIO_DEFAULT_PROJECT=${SLUG}
 IMGPROXY_ENABLE_WEBP_DETECTION=true
 FUNCTIONS_VERIFY_JWT=true
 
+# Docker socket (required for functions)
+DOCKER_SOCKET_LOCATION=/var/run/docker.sock
+
+# S3/Storage protocol (required by docker-compose)
+S3_PROTOCOL_ACCESS_KEY_ID=625729a08b95bf1b7ff351a663f3a23c
+S3_PROTOCOL_ACCESS_KEY_SECRET=850181e4652dd023b7a98c58ae0d2d34bd487ee0cc3254aed6eda37307425907
+
+# SMTP (fake values for local - email auth will use inbucket)
+SMTP_ADMIN_EMAIL=admin@${DOMAIN}
+SMTP_HOST=supabase-mail
+SMTP_PORT=2500
+SMTP_USER=fake_mail_user
+SMTP_PASS=fake_mail_password
+SMTP_SENDER_NAME=Supabase
+
 # Project identifier for container naming
 PROJECT_SLUG=${SLUG}
 ENVEOF
