@@ -5,6 +5,7 @@ import { BullModule } from '@nestjs/bullmq';
 import { ProjectsController } from './projects.controller';
 import { ProjectsService } from './projects.service';
 import { ProjectBuildProcessor } from './project-build.processor';
+import { SupabaseService } from './supabase.service';
 import { Project } from '../../database/entities/project.entity';
 import { ProjectEnvVar } from '../../database/entities/project-env-var.entity';
 import { Domain } from '../../database/entities/domain.entity';
@@ -21,7 +22,7 @@ import { Domain } from '../../database/entities/domain.entity';
     }),
   ],
   controllers: [ProjectsController],
-  providers: [ProjectsService, ProjectBuildProcessor],
+  providers: [ProjectsService, ProjectBuildProcessor, SupabaseService],
   exports: [ProjectsService],
 })
 export class ProjectsModule {}

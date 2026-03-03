@@ -33,6 +33,7 @@ import {
   detectProject,
   ensureDockerfile,
 } from './dockerfile-generator';
+import { SupabaseService } from './supabase.service';
 
 const BUILD_DIR = process.env.BUILD_DIR || '/app/builds';
 
@@ -48,6 +49,7 @@ export class ProjectsService {
     @InjectQueue('project-build')
     private readonly buildQueue: Queue,
     private readonly dockerService: DockerService,
+    private readonly supabaseService: SupabaseService,
   ) {}
 
   private slugFromName(name: string): string {
@@ -291,6 +293,10 @@ export class ProjectsService {
 
   async remove(admin: Admin, id: number): Promise<{ message: string }> {
     const project = await this.findOne(admin, id);
+    const hasSupabase = await this.supabaseService.hasSupabase(id);
+    if (hasSupabase) {
+      await this.supabaseService.stopSupabase(project.slug);
+    }
     if (project.containerId) {
       try {
         await this.dockerService.removeContainer(project.containerId);
@@ -321,5 +327,29 @@ export class ProjectsService {
       where: { projectId: id },
       order: { key: 'ASC' },
     });
+  }
+
+  async getSupabaseStatus(admin: Admin, id: number): Promise<{ configured: boolean; url?: string }> {
+    await this.findOne(admin, id);
+    const configured = await this.supabaseService.hasSupabase(id);
+    if (!configured) return { configured: false };
+    const ev = await this.envVarRepo.findOne({
+      where: { projectId: id, key: 'VITE_SUPABASE_URL' },
+    });
+    return { configured: true, url: ev?.value || undefined };
+  }
+
+  async setupSupabase(admin: Admin, id: number): Promise<{ url: string; message: string }> {
+    const project = await this.findOne(admin, id);
+    return this.supabaseService.setupSupabase(project);
+  }
+
+  async recreateSupabaseContainer(admin: Admin, id: number): Promise<{ message: string }> {
+    const project = await this.findOne(admin, id);
+    if (!project.containerId || !project.imageName) {
+      throw new BadRequestException('Project has no running container to recreate');
+    }
+    await this.supabaseService.recreateContainerWithEnv(project);
+    return { message: 'Container recreated with current env vars' };
   }
 }

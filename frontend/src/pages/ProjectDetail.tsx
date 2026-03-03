@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { io } from 'socket.io-client';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Play, Square, RotateCw, Trash2, ArrowLeft } from 'lucide-react';
+import { Play, Square, RotateCw, Trash2, ArrowLeft, Database } from 'lucide-react';
 import styles from './ProjectDetail.module.css';
 
 interface Project {
@@ -20,6 +20,11 @@ interface Project {
 
 interface Stats { cpu: number; memPct: number; }
 
+interface SupabaseStatus {
+  configured: boolean;
+  url?: string;
+}
+
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -27,9 +32,15 @@ export default function ProjectDetail() {
   const [stats, setStats] = useState<Stats[]>([]);
   const [logs, setLogs] = useState('');
   const [loading, setLoading] = useState(true);
+  const [supabase, setSupabase] = useState<SupabaseStatus | null>(null);
+  const [supabaseLoading, setSupabaseLoading] = useState(false);
 
   useEffect(() => {
     api.get('/projects/' + id).then((r) => { setProject(r.data); setLoading(false); }).catch(() => setLoading(false));
+  }, [id]);
+
+  useEffect(() => {
+    api.get('/projects/' + id + '/supabase').then((r) => setSupabase(r.data)).catch(() => setSupabase(null));
   }, [id]);
 
   useEffect(() => {
@@ -76,6 +87,24 @@ export default function ProjectDetail() {
       {project.domains?.length ? (
         <div className={styles.domains}>{project.domains.map((d) => <a key={d.domain} href={'https://' + d.domain} target="_blank" rel="noreferrer">{d.domain}</a>)}</div>
       ) : null}
+      <div className={styles.supabase}>
+        {supabase?.configured ? (
+          <p>Supabase: <a href={supabase.url} target="_blank" rel="noreferrer">{supabase.url}</a></p>
+        ) : (
+          <button onClick={async () => {
+            setSupabaseLoading(true);
+            try {
+              const { data } = await api.post('/projects/' + id + '/supabase/setup');
+              setSupabase({ configured: true, url: data.url });
+              setProject((p) => p ? { ...p } : null);
+              const { data: p } = await api.get('/projects/' + id);
+              setProject(p);
+            } catch (e: any) {
+              alert(e?.response?.data?.message || 'Supabase setup failed');
+            } finally { setSupabaseLoading(false); }
+          }} disabled={supabaseLoading || !project.domains?.length}><Database size={16} /> Setup Supabase</button>
+        )}
+      </div>
       {stats.length > 0 && (
         <div className={styles.charts}>
           <h3>Resource Usage</h3>
