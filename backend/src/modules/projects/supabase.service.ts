@@ -63,7 +63,9 @@ export class SupabaseService {
       };
     }
 
-    const hostingRoot = path.resolve(process.cwd(), process.cwd().endsWith('backend') ? '..' : '.');
+    const hostingRoot =
+      process.env.HOSTING_PANEL_ROOT ||
+      path.resolve(process.cwd(), process.cwd().endsWith('backend') ? '..' : '.');
     const scriptPath = path.join(hostingRoot, 'infra', 'supabase', 'create-project.sh');
     const exists = await fs.access(scriptPath).then(() => true).catch(() => false);
     if (!exists) {
@@ -163,7 +165,9 @@ export class SupabaseService {
    * Stop and remove Supabase stack for a project (call before project deletion).
    */
   async stopSupabase(slug: string): Promise<void> {
-    const hostingRoot = path.resolve(process.cwd(), process.cwd().endsWith('backend') ? '..' : '.');
+    const hostingRoot =
+      process.env.HOSTING_PANEL_ROOT ||
+      path.resolve(process.cwd(), process.cwd().endsWith('backend') ? '..' : '.');
     const scriptPath = path.join(hostingRoot, 'infra', 'supabase', 'stop-project.sh');
     const exists = await fs.access(scriptPath).then(() => true).catch(() => false);
     if (!exists) return;

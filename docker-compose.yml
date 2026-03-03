@@ -88,9 +88,11 @@ services:
       TRAEFIK_NETWORK: hosting_network
       BUILD_DIR: /app/builds
       UPLOAD_DIR: /tmp/uploads
+      HOSTING_PANEL_ROOT: /opt/hosting-panel
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - build_cache:/app/builds
+      - ./infra:/opt/hosting-panel/infra
     depends_on:
       mysql:
         condition: service_healthy
