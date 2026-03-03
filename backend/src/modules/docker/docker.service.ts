@@ -39,7 +39,7 @@ export interface ContainerStats {
 @Injectable()
 export class DockerService {
   private readonly logger = new Logger(DockerService.name);
-  private docker: Docker;
+  private docker: InstanceType<typeof Docker>;
 
   constructor() {
     const socketPath = process.env.DOCKER_SOCKET_PATH || '/var/run/docker.sock';
@@ -120,7 +120,7 @@ export class DockerService {
       labels['traefik.http.routers.' + opts.name + '.tls.certresolver'] = 'letsencrypt';
     }
 
-    const createOpts: Docker.ContainerCreateOptions = {
+    const createOpts = {
       Image: opts.image,
       name: opts.name,
       Env: env,
@@ -170,7 +170,7 @@ export class DockerService {
     try {
       const container = this.docker.getContainer(containerId);
       const stats = await container.stats({ stream: false });
-      const raw = stats as Docker.ContainerInspect & { networks?: Record<string, { rx_bytes: number; tx_bytes: number }> };
+      const raw = stats as Record<string, unknown> & { networks?: Record<string, { rx_bytes: number; tx_bytes: number }> };
       const memUsage = (raw as unknown as { memory_stats: { usage: number; limit: number } }).memory_stats || {};
       const cpuStats = (raw as unknown as { cpu_stats: { cpu_usage: { total_usage: number }; system_cpu_usage: number }; precpu_stats: { cpu_usage: { total_usage: number }; system_cpu_usage: number } }).cpu_stats;
       const memLimit = memUsage.limit || 1;
