@@ -1,0 +1,19 @@
+.page { }
+.back { display: inline-flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; color: var(--text-secondary); }
+.back:hover { color: var(--accent); }
+.header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; }
+.header h1 { font-size: 1.5rem; }
+.status { font-size: 0.85rem; text-transform: uppercase; }
+.error { padding: 1rem; background: rgba(248,81,73,0.15); border: 1px solid var(--error); border-radius: var(--radius); color: var(--error); margin-bottom: 1rem; }
+.controls { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+.controls button { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text-primary); }
+.controls button:hover:not(:disabled) { background: var(--border); }
+.controls button:disabled { opacity: 0.5; cursor: not-allowed; }
+.controls button.danger:hover:not(:disabled) { background: var(--error); border-color: var(--error); }
+.domains { margin-bottom: 1.5rem; }
+.domains a { display: inline-block; margin-right: 1rem; }
+.charts { margin-bottom: 2rem; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; }
+.charts h3 { margin-bottom: 1rem; font-size: 1rem; }
+.logs { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; }
+.logs h3 { margin-bottom: 0.75rem; font-size: 1rem; }
+.logContent { font-family: var(--font-mono); font-size: 0.8rem; white-space: pre-wrap; max-height: 400px; overflow: auto; color: var(--text-secondary); }

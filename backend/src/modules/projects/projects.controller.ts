@@ -1,0 +1,119 @@
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  UseGuards,
+  ParseIntPipe,
+  Res,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
+} from '@nestjs/common';
+import { Response } from 'express';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { multerConfig } from '../../common/multer.config';
+import { ProjectsService } from './projects.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentAdmin } from '../auth/decorators/current-admin.decorator';
+import { Admin } from '../../database/entities/admin.entity';
+import { CreateProjectDto } from './dto/create-project.dto';
+import { UpdateProjectDto } from './dto/update-project.dto';
+import { DockerService } from '../docker/docker.service';
+
+@Controller('projects')
+@UseGuards(JwtAuthGuard)
+export class ProjectsController {
+  constructor(
+    private readonly projectsService: ProjectsService,
+    private readonly dockerService: DockerService,
+  ) {}
+
+  @Post()
+  create(@CurrentAdmin() admin: Admin, @Body() dto: CreateProjectDto) {
+    return this.projectsService.create(admin, dto);
+  }
+
+  @Post('upload')
+  @UseInterceptors(FileInterceptor('file', multerConfig))
+  async uploadAndCreate(
+    @CurrentAdmin() admin: Admin,
+    @UploadedFile() file: Express.Multer.File,
+    @Body('name') name: string,
+    @Body('domains') domainsStr?: string,
+  ) {
+    if (!file) throw new BadRequestException('No file uploaded');
+    if (!name?.trim()) throw new BadRequestException('Project name is required');
+    const domains = domainsStr?.trim()
+      ? domainsStr.split(',').map((d) => d.trim()).filter(Boolean)
+      : [];
+    const dto: CreateProjectDto = { name: name.trim(), domains };
+    return this.projectsService.createFromUpload(admin, file, dto);
+  }
+
+  @Get()
+  findAll(@CurrentAdmin() admin: Admin) {
+    return this.projectsService.findAll(admin);
+  }
+
+  @Get(':id')
+  findOne(@CurrentAdmin() admin: Admin, @Param('id', ParseIntPipe) id: number) {
+    return this.projectsService.findOne(admin, id);
+  }
+
+  @Get(':id/logs')
+  async getLogsStream(
+    @CurrentAdmin() admin: Admin,
+    @Param('id', ParseIntPipe) id: number,
+    @Res() res: Response,
+  ) {
+    const project = await this.projectsService.findOne(admin, id);
+    if (!project.containerId) {
+      return res.status(400).json({ message: 'Container not running' });
+    }
+    const logStream = await this.dockerService.getContainerLogs(
+      project.containerId,
+      { tail: 500, follow: false },
+    );
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Transfer-Encoding', 'chunked');
+    logStream.pipe(res);
+  }
+
+  @Patch(':id')
+  update(
+    @CurrentAdmin() admin: Admin,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateProjectDto,
+  ) {
+    return this.projectsService.update(admin, id, dto);
+  }
+
+  @Post(':id/start')
+  start(@CurrentAdmin() admin: Admin, @Param('id', ParseIntPipe) id: number) {
+    return this.projectsService.start(admin, id);
+  }
+
+  @Post(':id/stop')
+  stop(@CurrentAdmin() admin: Admin, @Param('id', ParseIntPipe) id: number) {
+    return this.projectsService.stop(admin, id);
+  }
+
+  @Post(':id/restart')
+  restart(@CurrentAdmin() admin: Admin, @Param('id', ParseIntPipe) id: number) {
+    return this.projectsService.restart(admin, id);
+  }
+
+  @Delete(':id')
+  remove(@CurrentAdmin() admin: Admin, @Param('id', ParseIntPipe) id: number) {
+    return this.projectsService.remove(admin, id);
+  }
+
+  @Get(':id/env')
+  getEnvVars(@CurrentAdmin() admin: Admin, @Param('id', ParseIntPipe) id: number) {
+    return this.projectsService.getEnvVars(admin, id);
+  }
+}

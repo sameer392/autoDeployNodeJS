@@ -1,0 +1,126 @@
+version: '3.8'
+
+services:
+  # MySQL - Admin metadata
+  mysql:
+    image: mysql:8.0
+    container_name: hosting-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-changeme}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-hosting_panel}
+      MYSQL_USER: ${MYSQL_USER:-hosting}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-changeme}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./infra/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis - BullMQ queue
+  redis:
+    image: redis:7-alpine
+    container_name: hosting-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Traefik - Reverse proxy with auto SSL
+  traefik:
+    image: traefik:v3.0
+    container_name: hosting-traefik
+    restart: unless-stopped
+    command:
+      - --api.dashboard=true
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=hosting_network
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge=true
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
+      - --certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL:-admin@example.com}
+      - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
+      - --log.level=INFO
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik_letsencrypt:/letsencrypt
+      - traefik_logs:/var/log/traefik
+    networks:
+      - hosting_network
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: hosting-backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_HOST: mysql
+      DATABASE_PORT: 3306
+      DATABASE_NAME: ${MYSQL_DATABASE:-hosting_panel}
+      DATABASE_USER: ${MYSQL_USER:-hosting}
+      DATABASE_PASSWORD: ${MYSQL_PASSWORD:-changeme}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+      DOCKER_HOST: unix:///var/run/docker.sock
+      TRAEFIK_NETWORK: hosting_network
+      BUILD_DIR: /app/builds
+      UPLOAD_DIR: /tmp/uploads
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - build_cache:/app/builds
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - hosting_network
+
+  # Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: hosting-frontend
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.panel.rule=Host(`${PANEL_DOMAIN:-panel.localhost}`)"
+      - "traefik.http.routers.panel.entrypoints=websecure,web"
+      - "traefik.http.routers.panel.tls=true"
+      - "traefik.http.routers.panel.tls.certresolver=letsencrypt"
+      - "traefik.http.services.panel.loadbalancer.server.port=80"
+    networks:
+      - hosting_network
+
+volumes:
+  mysql_data:
+  redis_data:
+  traefik_letsencrypt:
+  traefik_logs:
+  build_cache:
+
+networks:
+  hosting_network:
+    driver: bridge
