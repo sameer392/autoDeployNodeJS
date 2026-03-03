@@ -4,7 +4,6 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Not } from 'typeorm';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { Repository } from 'typeorm';
@@ -186,7 +185,7 @@ export class ProjectsService {
 
   async findAll(admin: Admin): Promise<Project[]> {
     return this.projectRepo.find({
-      where: { adminId: admin.id, status: Not('deleted') },
+      where: { adminId: admin.id },
       relations: ['domains', 'envVars'],
       order: { createdAt: 'DESC' },
     });
@@ -312,7 +311,7 @@ export class ProjectsService {
     } catch {
       // ignore (volume may not exist for older projects)
     }
-    await this.projectRepo.update(id, { status: 'deleted', containerId: null });
+    await this.projectRepo.delete(id);
     return { message: 'Project removed' };
   }
 
