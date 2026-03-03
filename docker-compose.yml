@@ -35,9 +35,9 @@ services:
       timeout: 5s
       retries: 5
 
-  # Traefik - Reverse proxy with auto SSL
+  # Traefik - Reverse proxy with auto SSL (v2.x for Docker API compatibility)
   traefik:
-    image: traefik:v3.0
+    image: traefik:v2.11
     container_name: hosting-traefik
     restart: unless-stopped
     command:
@@ -123,4 +123,5 @@ volumes:
 
 networks:
   hosting_network:
+    name: hosting_network
     driver: bridge
