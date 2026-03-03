@@ -28,10 +28,15 @@ fi
 echo "Creating Supabase project: $SLUG for domain $DOMAIN"
 mkdir -p "$PROJECT_DIR"
 
-# Clone Supabase if not present
-if [ ! -d "$SUPABASE_DIR" ]; then
-  echo "Cloning Supabase docker..."
-  git clone --depth 1 https://github.com/supabase/supabase.git "$SUPABASE_DIR"
+# Clone Supabase if not present (backend pre-clones on startup; this is fallback)
+if [ ! -d "$SUPABASE_DIR/docker" ]; then
+  if [ ! -d "$SUPABASE_DIR" ]; then
+    echo "Cloning Supabase docker..."
+    git clone --depth 1 https://github.com/supabase/supabase.git "$SUPABASE_DIR"
+  else
+    echo "Supabase repo incomplete. Remove and retry: rm -rf $SUPABASE_DIR"
+    exit 1
+  fi
 fi
 
 # Generate secrets using Supabase's script if available
