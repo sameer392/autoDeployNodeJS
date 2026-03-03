@@ -19,6 +19,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - hosting_network
 
   # Redis - BullMQ queue
   redis:
@@ -34,6 +36,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - hosting_network
 
   # Traefik - Reverse proxy with auto SSL (v2.x for Docker API compatibility)
   traefik:
