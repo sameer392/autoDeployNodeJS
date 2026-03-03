@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import Docker from 'dockerode';
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const Docker = require('dockerode');
 import { Readable } from 'stream';
 import * as path from 'path';
 import archiver from 'archiver';
