@@ -75,9 +75,9 @@ The default admin is created automatically during installation:
 1. Log in to the panel
 2. Click "New Project"
 3. Enter project name (e.g. `my-app`)
-4. Upload a ZIP containing:
-   - Your application code
-   - A `Dockerfile` that builds and runs your app
+4. Upload a ZIP containing your Node.js source code (no Dockerfile required)
+   - Supported: React (Vite/CRA), Next.js, NestJS, Express
+   - ZIP can be the project folder or its contents (with `package.json` at root)
 5. Optional: Add domain (e.g. `app.yourdomain.com`)
 6. Click Create
 
@@ -85,6 +85,7 @@ The panel will:
 - Extract the ZIP
 - Build the Docker image
 - Run the container with resource limits
+- Auto-detect project type and generate a Dockerfile if needed
 - Configure Traefik routing (if domain provided)
 - Obtain SSL certificate via Let's Encrypt
 
@@ -111,8 +112,9 @@ The panel will:
 ## Troubleshooting
 
 ### Build fails
-- Ensure ZIP contains a valid Dockerfile
-- Check project uses standard port (80, 3000, 8080) or set `internalPort` in API
+- Ensure ZIP contains `package.json` (Node.js project)
+- Supported frameworks: React (Vite/CRA), Next.js, NestJS, Express
+- Check backend logs: `docker logs hosting-backend`
 
 ### No SSL certificate
 - Verify domain DNS points to VPS

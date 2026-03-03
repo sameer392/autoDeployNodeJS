@@ -55,7 +55,7 @@ export default function NewProject() {
           />
         </label>
         <label>
-          ZIP file (with Dockerfile)
+          ZIP file (Node.js source: React, Next.js, NestJS, etc.)
           <input
             type="file"
             accept=".zip"

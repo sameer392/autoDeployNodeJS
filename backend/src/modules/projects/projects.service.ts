@@ -8,9 +8,11 @@ import { Not } from 'typeorm';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { Repository } from 'typeorm';
+import { QueryFailedError } from 'typeorm';
 import * as path from 'path';
 import * as fs from 'fs/promises';
-import AdmZip from 'adm-zip';
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const AdmZip = require('adm-zip') as new (path: string) => { extractAllTo: (path: string, overwrite: boolean) => void };
 
 import { Project } from '../../database/entities/project.entity';
 import { ProjectEnvVar } from '../../database/entities/project-env-var.entity';
@@ -27,6 +29,11 @@ import {
 } from '../../common/constants';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
+import {
+  findProjectRoot,
+  detectProject,
+  ensureDockerfile,
+} from './dockerfile-generator';
 
 const BUILD_DIR = process.env.BUILD_DIR || '/app/builds';
 
@@ -122,6 +129,25 @@ export class ProjectsService {
     if (!file?.buffer && !file?.path) {
       throw new BadRequestException('No file uploaded');
     }
+    try {
+      return await this.createFromUploadInternal(admin, file, dto);
+    } catch (err) {
+      if (err instanceof QueryFailedError && err.message?.includes('Duplicate entry')) {
+        const match = err.message.match(/Duplicate entry '([^']+)'/);
+        const domain = match ? match[1] : 'this domain';
+        throw new BadRequestException(
+          `Domain "${domain}" is already assigned to another project. Choose a different domain or remove it from the existing project.`,
+        );
+      }
+      throw err;
+    }
+  }
+
+  private async createFromUploadInternal(
+    admin: Admin,
+    file: Express.Multer.File,
+    dto: CreateProjectDto,
+  ): Promise<Project> {
     const project = await this.create(admin, { ...dto, sourceType: 'zip' }, true);
     const buildDir = `${BUILD_DIR}/${project.slug}`;
     await fs.mkdir(buildDir, { recursive: true });
@@ -136,9 +162,20 @@ export class ProjectsService {
     zip.extractAllTo(buildDir, true);
     if (!file.path) await fs.unlink(zipPath).catch(() => {});
 
+    // Find project root (handles ZIP with single top-level folder)
+    const projectRoot = await findProjectRoot(buildDir);
+    const info = await detectProject(projectRoot);
+    await ensureDockerfile(info);
+
+    // Update project with detected port for container
+    await this.projectRepo.update(project.id, {
+      internalPort: info.internalPort,
+      buildContext: path.relative(buildDir, projectRoot) || '.',
+    });
+
     await this.buildQueue.add('build', {
       projectId: project.id,
-      buildContextPath: buildDir,
+      buildContextPath: projectRoot,
     });
     await this.projectRepo.update(project.id, { status: 'building' });
     return this.findOne(admin, project.id);
