@@ -81,7 +81,8 @@ export class SupabaseService {
       const { stdout, stderr } = await execAsync(
         `"${scriptPath}" "${supabaseSlug}" "${domain}"`,
         {
-          timeout: 600000, // 10 min – Supabase repo clone can be slow
+          timeout: 600000, // 10 min
+          maxBuffer: 50 * 1024 * 1024, // 50MB – docker compose outputs a lot
           env: { ...process.env, PATH: process.env.PATH || '/usr/bin:/bin' },
         },
       );
