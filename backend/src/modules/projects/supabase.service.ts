@@ -81,7 +81,7 @@ export class SupabaseService {
       const { stdout, stderr } = await execAsync(
         `"${scriptPath}" "${supabaseSlug}" "${domain}"`,
         {
-          timeout: 180000,
+          timeout: 600000, // 10 min – Supabase repo clone can be slow
           env: { ...process.env, PATH: process.env.PATH || '/usr/bin:/bin' },
         },
       );

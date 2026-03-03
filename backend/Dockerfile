@@ -6,7 +6,7 @@ COPY . .
 RUN npm run build
 
 FROM node:20-alpine
-RUN apk add --no-cache bash docker-cli docker-cli-compose
+RUN apk add --no-cache bash git openssl docker-cli docker-cli-compose
 WORKDIR /app
 COPY package*.json ./
 RUN npm install --omit=dev
