@@ -163,6 +163,17 @@ export class DockerService {
   }
 
   /**
+   * List all running containers with id and name (no slash prefix).
+   */
+  async listAllRunningContainers(): Promise<Array<{ id: string; name: string }>> {
+    const list = await this.docker.listContainers({ all: false });
+    return (list || []).map((c: any) => ({
+      id: c.Id,
+      name: ((c.Names || [])[0] || '').replace(/^\//, ''),
+    }));
+  }
+
+  /**
    * List all containers related to a project: app (file execution) + Supabase (DB, Kong, etc.).
    * Returns { id, name, role } for chart labeling.
    */

@@ -16,6 +16,7 @@ import { ProjectEnvVar } from './database/entities/project-env-var.entity';
 import { Log } from './database/entities/log.entity';
 import { ResourceStats } from './database/entities/resource-stats.entity';
 import { ResourceStatsModule } from './modules/resource-stats/resource-stats.module';
+import { ServerModule } from './modules/server/server.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { ResourceStatsModule } from './modules/resource-stats/resource-stats.mod
     DockerModule,
     LogsModule,
     ResourceStatsModule,
+    ServerModule,
   ],
 })
 export class AppModule {}
