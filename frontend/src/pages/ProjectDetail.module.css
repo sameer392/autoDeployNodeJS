@@ -13,9 +13,12 @@
 .domains { margin-bottom: 1.5rem; }
 .domains a { display: inline-block; margin-right: 1rem; }
 .supabase { margin-bottom: 1.5rem; }
+.supabase p { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
 .supabase button { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text-primary); }
 .supabase button:hover:not(:disabled) { background: var(--border); }
 .supabase button:disabled { opacity: 0.5; cursor: not-allowed; }
+.supabase button.studioBtn { background: var(--accent); border-color: var(--accent); color: white; }
+.supabase button.studioBtn:hover { filter: brightness(1.1); }
 .charts { margin-bottom: 2rem; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; }
 .charts h3 { margin-bottom: 1rem; font-size: 1rem; }
 .logs { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; }

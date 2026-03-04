@@ -122,6 +122,11 @@ export class ProjectsController {
     return this.projectsService.getSupabaseStatus(admin, id);
   }
 
+  @Get(':id/supabase/studio-url')
+  getSupabaseStudioUrl(@CurrentAdmin() admin: Admin, @Param('id', ParseIntPipe) id: number) {
+    return this.projectsService.getSupabaseStudioUrl(admin, id);
+  }
+
   @Post(':id/supabase/setup')
   setupSupabase(@CurrentAdmin() admin: Admin, @Param('id', ParseIntPipe) id: number) {
     return this.projectsService.setupSupabase(admin, id);

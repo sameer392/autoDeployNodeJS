@@ -339,6 +339,15 @@ export class ProjectsService {
     return { configured: true, url: ev?.value || undefined };
   }
 
+  async getSupabaseStudioUrl(admin: Admin, id: number): Promise<{ url: string }> {
+    const project = await this.findOne(admin, id);
+    const studioUrl = await this.supabaseService.getStudioUrl(project);
+    if (!studioUrl) {
+      throw new BadRequestException('Supabase not configured for this project');
+    }
+    return { url: studioUrl };
+  }
+
   async setupSupabase(admin: Admin, id: number): Promise<{ url: string; message: string }> {
     const project = await this.findOne(admin, id);
     return this.supabaseService.setupSupabase(project);

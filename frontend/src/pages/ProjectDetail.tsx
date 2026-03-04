@@ -89,7 +89,23 @@ export default function ProjectDetail() {
       ) : null}
       <div className={styles.supabase}>
         {supabase?.configured ? (
-          <p>Supabase: <a href={supabase.url} target="_blank" rel="noreferrer">{supabase.url}</a></p>
+          <p>
+            Supabase: <a href={supabase.url} target="_blank" rel="noreferrer">{supabase.url}</a>
+            {' '}
+            <button
+              onClick={async () => {
+                try {
+                  const { data } = await api.get('/projects/' + id + '/supabase/studio-url');
+                  if (data?.url) window.open(data.url, '_blank', 'noopener,noreferrer');
+                } catch (e: any) {
+                  alert(e?.response?.data?.message || 'Could not open Supabase Studio');
+                }
+              }}
+              className={styles.studioBtn}
+            >
+              Open Studio
+            </button>
+          </p>
         ) : (
           <button onClick={async () => {
             setSupabaseLoading(true);

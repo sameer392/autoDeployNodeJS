@@ -25,6 +25,33 @@ export class SupabaseService {
     private readonly dockerService: DockerService,
   ) {}
 
+  /** Get Supabase Studio URL with embedded Basic Auth for auto-login */
+  async getStudioUrl(project: Project): Promise<string | null> {
+    const ev = await this.envVarRepo.findOne({
+      where: { projectId: project.id, key: 'VITE_SUPABASE_URL' },
+    });
+    const apiUrl = ev?.value;
+    if (!apiUrl) return null;
+    const hostingRoot =
+      process.env.HOSTING_PANEL_ROOT ||
+      path.resolve(process.cwd(), process.cwd().endsWith('backend') ? '..' : '.');
+    const projectDir = path.join(hostingRoot, 'infra', 'supabase', 'projects', project.slug);
+    try {
+      const envContent = await fs.readFile(path.join(projectDir, '.env'), 'utf-8');
+      const userMatch = envContent.match(/DASHBOARD_USERNAME=(.+)/m);
+      const passMatch = envContent.match(/DASHBOARD_PASSWORD=(.+)/m);
+      const user = userMatch?.[1]?.trim() || 'supabase';
+      const pass = passMatch?.[1]?.trim() || '';
+      if (!pass) return apiUrl;
+      const u = new URL(apiUrl);
+      u.username = user;
+      u.password = pass;
+      return u.toString();
+    } catch {
+      return apiUrl;
+    }
+  }
+
   /** Check if project has Supabase env vars (already set up) */
   async hasSupabase(projectId: number): Promise<boolean> {
     const ev = await this.envVarRepo.findOne({
