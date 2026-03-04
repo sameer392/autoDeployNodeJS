@@ -7,7 +7,8 @@ import ProjectDetail from './pages/ProjectDetail';
 import NewProject from './pages/NewProject';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
+  if (isLoading) return null; // wait for token verification on refresh
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   return <>{children}</>;
 }
