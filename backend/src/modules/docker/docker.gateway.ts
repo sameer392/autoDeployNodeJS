@@ -74,12 +74,12 @@ export class DockerGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     const containers = await this.dockerService.listProjectContainers(projectSlug);
     if (!containers.length) {
-      client.emit('projectStats', { containers: {}, totals: { cpu: 0, memPct: 0 }, meta: { containers: [] } });
+      client.emit('projectStats', { containers: {}, totals: { cpu: 0, memPct: 0, memoryMb: 0 }, meta: { containers: [] } });
       return;
     }
 
     const interval = setInterval(async () => {
-      const allStats: Record<string, { name: string; role: string; cpu: number; memPct: number }> = {};
+      const allStats: Record<string, { name: string; role: string; cpu: number; memPct: number; memoryMb: number }> = {};
       let totalCpu = 0;
       let totalMemUsed = 0;
       let totalMemLimit = 0;
@@ -87,7 +87,8 @@ export class DockerGateway implements OnGatewayConnection, OnGatewayDisconnect {
       for (const c of containers) {
         const stats = await this.dockerService.getContainerStats(c.id);
         if (stats) {
-          allStats[c.id] = { name: stats.name, role: c.role, cpu: stats.cpu, memPct: stats.memPct };
+          const memoryMb = stats.memory / (1024 * 1024);
+          allStats[c.id] = { name: stats.name, role: c.role, cpu: stats.cpu, memPct: stats.memPct, memoryMb };
           totalCpu += stats.cpu;
           totalMemUsed += stats.memory;
           totalMemLimit += stats.memoryLimit;
@@ -95,9 +96,10 @@ export class DockerGateway implements OnGatewayConnection, OnGatewayDisconnect {
       }
 
       const totalMemPct = totalMemLimit > 0 ? (totalMemUsed / totalMemLimit) * 100 : 0;
+      const totalMemoryMb = totalMemUsed / (1024 * 1024);
       client.emit('projectStats', {
         containers: allStats,
-        totals: { cpu: totalCpu, memPct: totalMemPct },
+        totals: { cpu: totalCpu, memPct: totalMemPct, memoryMb: totalMemoryMb },
         meta: { containers: containers.map((c) => ({ id: c.id, name: c.name, role: c.role })) },
       });
     }, 2000);

@@ -18,10 +18,10 @@ interface Project {
   domains?: { domain: string }[];
 }
 
-interface ContainerStat { name: string; role: string; cpu: number; memPct: number; }
+interface ContainerStat { name: string; role: string; cpu: number; memPct: number; memoryMb?: number; }
 interface ProjectStatsPayload {
   containers: Record<string, ContainerStat>;
-  totals: { cpu: number; memPct: number };
+  totals: { cpu: number; memPct: number; memoryMb?: number };
   meta: { containers: Array<{ id: string; name: string; role: string }> };
 }
 
@@ -188,10 +188,10 @@ export default function ProjectDetail() {
           pt['Total'] = p.totals.cpu;
           return pt;
         });
-        const memData = projectStatsHistory.map((p, idx) => {
+        const memMbData = projectStatsHistory.map((p, idx) => {
           const pt: Record<string, number> = { i: idx };
-          for (const m of last.meta.containers) pt[m.role] = p.containers[m.id]?.memPct ?? 0;
-          pt['Total'] = p.totals.memPct;
+          for (const m of last.meta.containers) pt[m.role] = p.containers[m.id]?.memoryMb ?? 0;
+          pt['Total'] = p.totals.memoryMb ?? 0;
           return pt;
         });
         return (
@@ -214,13 +214,13 @@ export default function ProjectDetail() {
                 </ResponsiveContainer>
               </div>
               <div className={styles.chartBox}>
-                <h4>RAM %</h4>
+                <h4>Memory (MB)</h4>
                 <ResponsiveContainer width="100%" height={180}>
-                  <LineChart data={memData}>
+                  <LineChart data={memMbData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                     <XAxis dataKey="i" hide />
                     <YAxis />
-                    <Tooltip contentStyle={{ background: 'var(--bg-secondary)' }} />
+                    <Tooltip contentStyle={{ background: 'var(--bg-secondary)' }} formatter={(v: number, name: string) => [v != null ? v.toFixed(2) + ' MB' : '-', name]} />
                     <Legend />
                     {roles.map((r, i) => (
                       <Line key={r} type="monotone" dataKey={r} stroke={palette[i % palette.length]} strokeWidth={r === 'Total' ? 2.5 : 1.5} dot={false} />
