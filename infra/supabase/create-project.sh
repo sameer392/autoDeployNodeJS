@@ -90,6 +90,8 @@ LOGFLARE_PRIVATE_ACCESS_TOKEN=${LOGFLARE_PRIVATE_ACCESS_TOKEN}
 SUPABASE_PUBLIC_URL=${API_URL}
 API_EXTERNAL_URL=${API_URL}
 SITE_URL=${SITE_URL}
+# Studio client API base - must match Kong/Studio origin for same-origin /api requests
+NEXT_PUBLIC_SITE_URL=${API_URL}
 ADDITIONAL_REDIRECT_URLS=https://${DOMAIN}/**,https://${DOMAIN}
 
 MAILER_URLPATHS_CONFIRMATION="/auth/v1/verify"
@@ -123,7 +125,8 @@ POOLER_DB_POOL_SIZE=15
 POOLER_PROXY_PORT_TRANSACTION=6543
 
 STUDIO_DEFAULT_ORGANIZATION=Hosting
-STUDIO_DEFAULT_PROJECT=${SLUG}
+# Must be "default" to match Studio URL /project/default and lib/constants/api.ts DEFAULT_PROJECT.ref
+STUDIO_DEFAULT_PROJECT=default
 IMGPROXY_ENABLE_WEBP_DETECTION=true
 FUNCTIONS_VERIFY_JWT=true
 
@@ -163,6 +166,24 @@ mkdir -p "$(dirname "$KONG_YAML")"
 if [ -f "$SUPABASE_DIR/docker/volumes/api/kong.yml" ]; then
   sed "s|realtime-dev.supabase-realtime|supabase-${SLUG}-realtime|g" \
     "$SUPABASE_DIR/docker/volumes/api/kong.yml" > "$KONG_YAML"
+  # Add studio-api route without basic-auth (fetch does not send Basic Auth from page URL)
+  if ! grep -q "name: studio-api" "$KONG_YAML" 2>/dev/null; then
+    PATCH="  ## Studio API - no Basic Auth (fetch does not send URL credentials)
+  - name: studio-api
+    _comment: 'Studio API: /api/* -> Studio without basic-auth'
+    url: http://studio:3000/
+    routes:
+      - name: studio-api-route
+        strip_path: false
+        paths:
+          - /api/
+    plugins:
+      - name: cors
+
+"
+    # Insert before "## Protected Dashboard"
+    awk -v patch="$PATCH" '/## Protected Dashboard - catch all/ { print patch; print; next } 1' "$KONG_YAML" > "$KONG_YAML.tmp" && mv "$KONG_YAML.tmp" "$KONG_YAML"
+  fi
 else
   echo "# Kong config placeholder - copy from Supabase repo" > "$KONG_YAML"
 fi
@@ -221,6 +242,8 @@ services:
 
   studio:
     container_name: supabase-${SLUG}-studio
+    environment:
+      NEXT_PUBLIC_SITE_URL: ${API_URL}
 
   analytics:
     container_name: supabase-${SLUG}-analytics
