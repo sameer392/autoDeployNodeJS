@@ -391,7 +391,7 @@ export class ProjectsService {
     const toDate = to ? new Date(to) : new Date();
     const fromDate = from
       ? new Date(from)
-      : new Date(toDate.getTime() - 7 * 24 * 60 * 60 * 1000);
+      : new Date(toDate.getTime() - 24 * 60 * 60 * 1000);
     if (fromDate > toDate) {
       throw new BadRequestException('"from" must be before "to"');
     }

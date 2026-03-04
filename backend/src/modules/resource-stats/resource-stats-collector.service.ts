@@ -7,7 +7,7 @@ import { ResourceStatsService } from './resource-stats.service';
 
 /**
  * Background collector: persists resource stats to resource_stats table every 60 seconds
- * for all projects with running containers. This ensures Per Minute/Hour/Day views
+ * for all projects with running containers. This ensures Per Minute/Hour views
  * have data even when no one is viewing the project page in Live mode.
  */
 @Injectable()
@@ -84,7 +84,7 @@ export class ResourceStatsCollectorService implements OnModuleInit, OnModuleDest
           this.logger.warn(`Failed to collect stats for ${project.slug}: ${err}`);
         }
       }
-      await this.resourceStatsService.cleanupOlderThan(7);
+      await this.resourceStatsService.cleanupOlderThan(1);
     } catch (err: unknown) {
       this.logger.warn('Stats collection error: ' + (err instanceof Error ? err.message : err));
     }

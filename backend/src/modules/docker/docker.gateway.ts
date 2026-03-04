@@ -123,7 +123,7 @@ export class DockerGateway implements OnGatewayConnection, OnGatewayDisconnect {
             });
           }
         });
-        this.resourceStatsService.cleanupOlderThan(7).catch(() => {});
+        this.resourceStatsService.cleanupOlderThan(1).catch(() => {});
       }
     };
 

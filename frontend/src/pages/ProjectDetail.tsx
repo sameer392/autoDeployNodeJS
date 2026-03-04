@@ -35,7 +35,7 @@ export default function ProjectDetail() {
   const navigate = useNavigate();
   const [project, setProject] = useState<Project | null>(null);
   const [projectStatsHistory, setProjectStatsHistory] = useState<Array<ProjectStatsPayload & { i: number }>>([]);
-  const [statsView, setStatsView] = useState<'live' | 'minute' | 'hour' | 'day'>('live');
+  const [statsView, setStatsView] = useState<'live' | 'minute' | 'hour'>('live');
   const [historicalStats, setHistoricalStats] = useState<{
     data: Array<{ t: string; containers: Record<string, { cpu: number; memoryMb: number }>; totals: { cpu: number; memoryMb: number } }>;
     roles: string[];
@@ -111,7 +111,7 @@ export default function ProjectDetail() {
     const fetchHistorical = () => {
       setHistoricalLoading(true);
       const to = new Date();
-      const from = new Date(to.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const from = new Date(to.getTime() - 24 * 60 * 60 * 1000);
       api
         .get(
           `/projects/${id}/stats?interval=${statsView}&from=${from.toISOString()}&to=${to.toISOString()}`,
@@ -158,11 +158,11 @@ export default function ProjectDetail() {
   let chartContent: React.ReactNode;
   if (!liveHasData && !histHasData) {
     chartContent = historicalLoading ? (
-      <p className={styles.chartHint}>Loading past 7 days…</p>
+      <p className={styles.chartHint}>Loading past 24 hours…</p>
     ) : isLive ? (
       <p className={styles.chartHint}>Waiting for live data…</p>
     ) : (
-      <p className={styles.chartHint}>No historical data for the last 7 days.</p>
+      <p className={styles.chartHint}>No historical data for the last 24 hours.</p>
     );
   } else {
     let roles: string[];
@@ -322,11 +322,10 @@ export default function ProjectDetail() {
         <h3>Resource Usage</h3>
         <div className={styles.statsBar}>
           <label>View:</label>
-          <select value={statsView} onChange={(e) => setStatsView(e.target.value as 'live' | 'minute' | 'hour' | 'day')} className={styles.statsSelect}>
+          <select value={statsView} onChange={(e) => setStatsView(e.target.value as 'live' | 'minute' | 'hour')} className={styles.statsSelect}>
             <option value="live">Live</option>
             <option value="minute">Per Minute</option>
             <option value="hour">Per Hour</option>
-            <option value="day">Per Day</option>
           </select>
           {statsView !== 'live' && (
             <button
@@ -336,7 +335,7 @@ export default function ProjectDetail() {
                 if (!id) return;
                 setHistoricalLoading(true);
                 const to = new Date();
-                const from = new Date(to.getTime() - 7 * 24 * 60 * 60 * 1000);
+                const from = new Date(to.getTime() - 24 * 60 * 60 * 1000);
                 api.get(`/projects/${id}/stats?interval=${statsView}&from=${from.toISOString()}&to=${to.toISOString()}`)
                   .then((r) => setHistoricalStats(r.data))
                   .catch(() => setHistoricalStats(null))
