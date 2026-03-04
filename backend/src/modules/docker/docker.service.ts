@@ -245,7 +245,7 @@ export class DockerService {
         const precpu = (raw as any).precpu_stats;
         const cpuDelta = cpuStats.cpu_usage.total_usage - (precpu.cpu_usage?.total_usage || 0);
         const sysDelta = cpuStats.system_cpu_usage - (precpu.system_cpu_usage || 0);
-        if (sysDelta > 0) cpuPct = (cpuDelta / sysDelta) * 100;
+        if (sysDelta > 0) cpuPct = Math.max(0, (cpuDelta / sysDelta) * 100);
       }
 
       let netRx = 0, netTx = 0;

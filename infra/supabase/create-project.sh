@@ -28,7 +28,16 @@ fi
 echo "Creating Supabase project: $SLUG for domain $DOMAIN"
 mkdir -p "$PROJECT_DIR"
 
-# Clone Supabase if not present (backend pre-clones on startup; this is fallback)
+# Preserve existing secrets if retrying (DB volume already initialized with them)
+if [ -f "$PROJECT_DIR/.env" ]; then
+  echo "Preserving existing secrets from previous run..."
+  for key in POSTGRES_PASSWORD JWT_SECRET ANON_KEY SERVICE_ROLE_KEY SECRET_KEY_BASE VAULT_ENC_KEY PG_META_CRYPTO_KEY LOGFLARE_PUBLIC_ACCESS_TOKEN LOGFLARE_PRIVATE_ACCESS_TOKEN DASHBOARD_PASSWORD; do
+    val=$(grep -E "^${key}=" "$PROJECT_DIR/.env" 2>/dev/null | cut -d= -f2-)
+    [ -n "$val" ] && export "$key=$val"
+  done
+fi
+
+# Clone Supabase if not present if not present (backend pre-clones on startup; this is fallback)
 if [ ! -d "$SUPABASE_DIR/docker" ]; then
   if [ ! -d "$SUPABASE_DIR" ]; then
     echo "Cloning Supabase docker..."
@@ -195,7 +204,7 @@ cat > "$OVERRIDE" << OVEREOF
 services:
   kong:
     container_name: supabase-${SLUG}-kong
-    ports: []
+    ports: !reset []
     volumes:
       - ${KONG_YAML}:/home/kong/temp.yml:ro,z
     labels:
