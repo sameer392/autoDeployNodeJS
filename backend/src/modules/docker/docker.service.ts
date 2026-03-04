@@ -162,6 +162,28 @@ export class DockerService {
     }
   }
 
+  /**
+   * List all containers related to a project: app (file execution) + Supabase (DB, Kong, etc.).
+   * Returns { id, name, role } for chart labeling.
+   */
+  async listProjectContainers(projectSlug: string): Promise<Array<{ id: string; name: string; role: string }>> {
+    const result: Array<{ id: string; name: string; role: string }> = [];
+    const list = await this.docker.listContainers({ all: false });
+    const prefix = `supabase-${projectSlug}-`;
+
+    for (const c of list || []) {
+      const names = (c.Names || []) as string[];
+      const name = names[0]?.replace(/^\//, '') || '';
+      if (name === projectSlug) {
+        result.push({ id: c.Id, name, role: 'App (files)' });
+      } else if (name.startsWith(prefix)) {
+        const role = name.slice(prefix.length);
+        result.push({ id: c.Id, name, role: role.charAt(0).toUpperCase() + role.slice(1) });
+      }
+    }
+    return result;
+  }
+
   /** Find container by exact name (returns id or null). */
   async findContainerByName(name: string): Promise<string | null> {
     const list = await this.docker.listContainers({

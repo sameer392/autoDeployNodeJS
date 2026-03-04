@@ -19,6 +19,7 @@ export class DockerGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   private readonly logger = new Logger(DockerGateway.name);
   private readonly subscriptions = new Map<string, Set<string>>();
+  private readonly projectSubscriptions = new Map<string, NodeJS.Timeout>();
 
   constructor(private readonly dockerService: DockerService) {}
 
@@ -28,6 +29,11 @@ export class DockerGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   handleDisconnect(client: any) {
     this.subscriptions.delete(client.id);
+    const interval = this.projectSubscriptions.get(client.id);
+    if (interval) {
+      clearInterval(interval);
+      this.projectSubscriptions.delete(client.id);
+    }
     this.logger.log(`Client disconnected: ${client.id}`);
   }
 
@@ -56,6 +62,56 @@ export class DockerGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('stats:unsubscribe')
   handleStatsUnsubscribe(client: any, payload: { containerId: string }) {
     this.subscriptions.get(client.id)?.delete(payload.containerId);
+  }
+
+  @SubscribeMessage('stats:subscribeProject')
+  async handleStatsSubscribeProject(client: any, payload: { projectSlug: string }) {
+    const { projectSlug } = payload;
+    if (!projectSlug) return;
+
+    const existing = this.projectSubscriptions.get(client.id);
+    if (existing) clearInterval(existing);
+
+    const containers = await this.dockerService.listProjectContainers(projectSlug);
+    if (!containers.length) {
+      client.emit('projectStats', { containers: {}, totals: { cpu: 0, memPct: 0 }, meta: { containers: [] } });
+      return;
+    }
+
+    const interval = setInterval(async () => {
+      const allStats: Record<string, { name: string; role: string; cpu: number; memPct: number }> = {};
+      let totalCpu = 0;
+      let totalMemUsed = 0;
+      let totalMemLimit = 0;
+
+      for (const c of containers) {
+        const stats = await this.dockerService.getContainerStats(c.id);
+        if (stats) {
+          allStats[c.id] = { name: stats.name, role: c.role, cpu: stats.cpu, memPct: stats.memPct };
+          totalCpu += stats.cpu;
+          totalMemUsed += stats.memory;
+          totalMemLimit += stats.memoryLimit;
+        }
+      }
+
+      const totalMemPct = totalMemLimit > 0 ? (totalMemUsed / totalMemLimit) * 100 : 0;
+      client.emit('projectStats', {
+        containers: allStats,
+        totals: { cpu: totalCpu, memPct: totalMemPct },
+        meta: { containers: containers.map((c) => ({ id: c.id, name: c.name, role: c.role })) },
+      });
+    }, 2000);
+
+    this.projectSubscriptions.set(client.id, interval);
+  }
+
+  @SubscribeMessage('stats:unsubscribeProject')
+  handleStatsUnsubscribeProject(client: any) {
+    const interval = this.projectSubscriptions.get(client.id);
+    if (interval) {
+      clearInterval(interval);
+      this.projectSubscriptions.delete(client.id);
+    }
   }
 
   broadcastStats(containerId: string, stats: Record<string, unknown>) {

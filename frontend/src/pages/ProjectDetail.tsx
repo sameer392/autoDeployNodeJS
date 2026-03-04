@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { io } from 'socket.io-client';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { Play, Square, RotateCw, Trash2, ArrowLeft, Database, Copy } from 'lucide-react';
 import styles from './ProjectDetail.module.css';
 
@@ -18,7 +18,12 @@ interface Project {
   domains?: { domain: string }[];
 }
 
-interface Stats { cpu: number; memPct: number; }
+interface ContainerStat { name: string; role: string; cpu: number; memPct: number; }
+interface ProjectStatsPayload {
+  containers: Record<string, ContainerStat>;
+  totals: { cpu: number; memPct: number };
+  meta: { containers: Array<{ id: string; name: string; role: string }> };
+}
 
 interface SupabaseStatus {
   configured: boolean;
@@ -29,7 +34,7 @@ export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [project, setProject] = useState<Project | null>(null);
-  const [stats, setStats] = useState<Stats[]>([]);
+  const [projectStatsHistory, setProjectStatsHistory] = useState<Array<ProjectStatsPayload & { i: number }>>([]);
   const [logs, setLogs] = useState('');
   const [loading, setLoading] = useState(true);
   const [supabase, setSupabase] = useState<SupabaseStatus | null>(null);
@@ -72,12 +77,20 @@ export default function ProjectDetail() {
   }, [supabase?.configured, id]);
 
   useEffect(() => {
-    if (!project?.containerId || project.status !== 'running') return;
+    if (!project?.slug) return;
     const socket = io('/docker', { path: '/socket.io' });
-    socket.emit('stats:subscribe', { containerId: project.containerId });
-    socket.on('stats', (s: Stats) => { setStats((prev) => [...prev.slice(-59), s]); });
-    return () => { socket.emit('stats:unsubscribe', { containerId: project.containerId }); socket.close(); };
-  }, [project?.containerId, project?.status]);
+    socket.emit('stats:subscribeProject', { projectSlug: project.slug });
+    socket.on('projectStats', (payload: ProjectStatsPayload) => {
+      setProjectStatsHistory((prev) => {
+        const next = [...prev.slice(-59), { ...payload, i: prev.length }];
+        return next;
+      });
+    });
+    return () => {
+      socket.emit('stats:unsubscribeProject');
+      socket.close();
+    };
+  }, [project?.slug]);
 
   useEffect(() => {
     if (!project?.containerId) return;
@@ -165,21 +178,60 @@ export default function ProjectDetail() {
           }} disabled={supabaseLoading || !project.domains?.length}><Database size={16} /> Setup Supabase</button>
         )}
       </div>
-      {stats.length > 0 && (
-        <div className={styles.charts}>
-          <h3>Resource Usage</h3>
-          <ResponsiveContainer width="100%" height={200}>
-            <AreaChart data={stats.map((s, i) => ({ i, cpu: s.cpu, mem: s.memPct }))}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-              <XAxis dataKey="i" hide />
-              <YAxis />
-              <Tooltip contentStyle={{ background: 'var(--bg-secondary)' }} />
-              <Area type="monotone" dataKey="cpu" stroke="var(--accent)" fill="var(--accent)" fillOpacity={0.2} />
-              <Area type="monotone" dataKey="mem" stroke="var(--success)" fill="var(--success)" fillOpacity={0.2} />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      )}
+      {projectStatsHistory.length > 0 && (() => {
+        const last = projectStatsHistory[projectStatsHistory.length - 1];
+        const roles = [...last.meta.containers.map((c) => c.role), 'Total'];
+        const palette = ['#8884d8', '#82ca9d', '#ffc658', '#ff7c7c', '#8dd1e1', '#a4de6c', '#ff8042', '#ffbb28'];
+        const cpuData = projectStatsHistory.map((p, idx) => {
+          const pt: Record<string, number> = { i: idx };
+          for (const m of last.meta.containers) pt[m.role] = p.containers[m.id]?.cpu ?? 0;
+          pt['Total'] = p.totals.cpu;
+          return pt;
+        });
+        const memData = projectStatsHistory.map((p, idx) => {
+          const pt: Record<string, number> = { i: idx };
+          for (const m of last.meta.containers) pt[m.role] = p.containers[m.id]?.memPct ?? 0;
+          pt['Total'] = p.totals.memPct;
+          return pt;
+        });
+        return (
+          <div className={styles.charts}>
+            <h3>Resource Usage</h3>
+            <div className={styles.chartRow}>
+              <div className={styles.chartBox}>
+                <h4>CPU %</h4>
+                <ResponsiveContainer width="100%" height={180}>
+                  <LineChart data={cpuData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                    <XAxis dataKey="i" hide />
+                    <YAxis />
+                    <Tooltip contentStyle={{ background: 'var(--bg-secondary)' }} />
+                    <Legend />
+                    {roles.map((r, i) => (
+                      <Line key={r} type="monotone" dataKey={r} stroke={palette[i % palette.length]} strokeWidth={r === 'Total' ? 2.5 : 1.5} dot={false} />
+                    ))}
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+              <div className={styles.chartBox}>
+                <h4>RAM %</h4>
+                <ResponsiveContainer width="100%" height={180}>
+                  <LineChart data={memData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                    <XAxis dataKey="i" hide />
+                    <YAxis />
+                    <Tooltip contentStyle={{ background: 'var(--bg-secondary)' }} />
+                    <Legend />
+                    {roles.map((r, i) => (
+                      <Line key={r} type="monotone" dataKey={r} stroke={palette[i % palette.length]} strokeWidth={r === 'Total' ? 2.5 : 1.5} dot={false} />
+                    ))}
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
       <div className={styles.logs}><h3>Logs</h3><pre className={styles.logContent}>{logs || 'No logs'}</pre></div>
     </div>
   );

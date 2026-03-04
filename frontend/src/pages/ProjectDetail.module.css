@@ -35,6 +35,10 @@
 .credError { color: var(--error); font-size: 0.9rem; }
 .charts { margin-bottom: 2rem; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; }
 .charts h3 { margin-bottom: 1rem; font-size: 1rem; }
+.chartRow { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+@media (max-width: 768px) { .chartRow { grid-template-columns: 1fr; } }
+.chartBox { min-width: 0; }
+.chartBox h4 { margin: 0 0 0.5rem; font-size: 0.85rem; color: var(--text-secondary); }
 .logs { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; }
 .logs h3 { margin-bottom: 0.75rem; font-size: 1rem; }
 .logContent { font-family: var(--font-mono); font-size: 0.8rem; white-space: pre-wrap; max-height: 400px; overflow: auto; color: var(--text-secondary); }
