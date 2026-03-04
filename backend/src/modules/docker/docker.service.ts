@@ -267,15 +267,15 @@ export class DockerService {
   async getContainerLogs(
     containerId: string,
     options?: { tail?: number; follow?: boolean },
-  ): Promise<Readable> {
+  ): Promise<Readable | Buffer | string> {
     const container = this.docker.getContainer(containerId);
-    const logStream = await container.logs({
+    const out = await container.logs({
       stdout: true,
       stderr: true,
       tail: options?.tail ?? 100,
       follow: options?.follow ?? false,
     });
-    return logStream as Readable;
+    return out as Readable | Buffer | string;
   }
 
   async containerExists(containerId: string): Promise<boolean> {

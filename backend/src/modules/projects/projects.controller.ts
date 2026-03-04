@@ -101,16 +101,19 @@ export class ProjectsController {
       if (!exists) {
         return res.status(400).json({ message: 'Container not found or not running' });
       }
-      const logStream = await this.dockerService.getContainerLogs(
+      const logs = await this.dockerService.getContainerLogs(
         containerId,
         { tail: 500, follow: false },
       );
       res.setHeader('Content-Type', 'text/plain; charset=utf-8');
       res.setHeader('Cache-Control', 'no-cache');
-      logStream.on('error', () => {
-        try { res.end(); } catch { /* already closed */ }
-      });
-      logStream.pipe(res);
+      if (typeof logs === 'string' || Buffer.isBuffer(logs)) {
+        res.send(logs);
+      } else if (logs && typeof (logs as NodeJS.ReadableStream).pipe === 'function') {
+        (logs as NodeJS.ReadableStream).pipe(res);
+      } else {
+        res.send(String(logs ?? ''));
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to fetch logs';
       res.status(500).setHeader('Content-Type', 'text/plain').send('Error: ' + msg);
