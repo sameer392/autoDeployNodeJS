@@ -9,9 +9,11 @@ import { SupabaseService } from './supabase.service';
 import { Project } from '../../database/entities/project.entity';
 import { ProjectEnvVar } from '../../database/entities/project-env-var.entity';
 import { Domain } from '../../database/entities/domain.entity';
+import { ResourceStatsModule } from '../resource-stats/resource-stats.module';
 
 @Module({
   imports: [
+    ResourceStatsModule,
     TypeOrmModule.forFeature([Project, ProjectEnvVar, Domain]),
     BullModule.registerQueue({
       name: 'project-build',

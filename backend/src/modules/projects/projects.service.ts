@@ -34,6 +34,10 @@ import {
   ensureDockerfile,
 } from './dockerfile-generator';
 import { SupabaseService } from './supabase.service';
+import {
+  ResourceStatsService,
+  StatsInterval,
+} from '../resource-stats/resource-stats.service';
 
 const BUILD_DIR = process.env.BUILD_DIR || '/app/builds';
 
@@ -50,6 +54,7 @@ export class ProjectsService {
     private readonly buildQueue: Queue,
     private readonly dockerService: DockerService,
     private readonly supabaseService: SupabaseService,
+    private readonly resourceStatsService: ResourceStatsService,
   ) {}
 
   private slugFromName(name: string): string {
@@ -373,5 +378,28 @@ export class ProjectsService {
     }
     await this.supabaseService.recreateContainerWithEnv(project);
     return { message: 'Container recreated with current env vars' };
+  }
+
+  async getResourceStats(
+    admin: Admin,
+    id: number,
+    interval: StatsInterval,
+    from?: string,
+    to?: string,
+  ) {
+    const project = await this.findOne(admin, id);
+    const toDate = to ? new Date(to) : new Date();
+    const fromDate = from
+      ? new Date(from)
+      : new Date(toDate.getTime() - 7 * 24 * 60 * 60 * 1000);
+    if (fromDate > toDate) {
+      throw new BadRequestException('"from" must be before "to"');
+    }
+    return this.resourceStatsService.getAggregated(
+      project.id,
+      fromDate,
+      toDate,
+      interval,
+    );
   }
 }

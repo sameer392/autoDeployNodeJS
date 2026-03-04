@@ -8,6 +8,7 @@ import {
 import { Logger } from '@nestjs/common';
 import { Server } from 'socket.io';
 import { DockerService } from './docker.service';
+import { ResourceStatsService } from '../resource-stats/resource-stats.service';
 
 @WebSocketGateway({
   cors: { origin: '*' },
@@ -21,7 +22,12 @@ export class DockerGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly subscriptions = new Map<string, Set<string>>();
   private readonly projectSubscriptions = new Map<string, NodeJS.Timeout>();
 
-  constructor(private readonly dockerService: DockerService) {}
+  private lastPersisted = new Map<string, number>();
+
+  constructor(
+    private readonly dockerService: DockerService,
+    private readonly resourceStatsService: ResourceStatsService,
+  ) {}
 
   handleConnection(client: any) {
     this.logger.log(`Client connected: ${client.id}`);
@@ -102,6 +108,23 @@ export class DockerGateway implements OnGatewayConnection, OnGatewayDisconnect {
         totals: { cpu: totalCpu, memPct: totalMemPct, memoryMb: totalMemoryMb },
         meta: { containers: containers.map((c) => ({ id: c.id, name: c.name, role: c.role })) },
       });
+
+      // Persist every 60 seconds (fire-and-forget)
+      const now = Date.now();
+      const last = this.lastPersisted.get(projectSlug) ?? 0;
+      if (now - last >= 60000) {
+        this.lastPersisted.set(projectSlug, now);
+        this.resourceStatsService.findProjectIdBySlug(projectSlug).then((projectId) => {
+          if (projectId) {
+            this.resourceStatsService.record({
+              projectId,
+              containers: allStats,
+              totals: { cpu: totalCpu, memPct: totalMemPct, memoryMb: totalMemoryMb },
+            });
+          }
+        });
+        this.resourceStatsService.cleanupOlderThan(7).catch(() => {});
+      }
     };
 
     fetchAndEmit(); // first fetch immediately

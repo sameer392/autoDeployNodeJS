@@ -35,6 +35,12 @@ export default function ProjectDetail() {
   const navigate = useNavigate();
   const [project, setProject] = useState<Project | null>(null);
   const [projectStatsHistory, setProjectStatsHistory] = useState<Array<ProjectStatsPayload & { i: number }>>([]);
+  const [statsView, setStatsView] = useState<'live' | 'minute' | 'hour' | 'day'>('live');
+  const [historicalStats, setHistoricalStats] = useState<{
+    data: Array<{ t: string; containers: Record<string, { cpu: number; memoryMb: number }>; totals: { cpu: number; memoryMb: number } }>;
+    roles: string[];
+  } | null>(null);
+  const [historicalLoading, setHistoricalLoading] = useState(false);
   const [logs, setLogs] = useState('');
   const [loading, setLoading] = useState(true);
   const [supabase, setSupabase] = useState<SupabaseStatus | null>(null);
@@ -77,7 +83,7 @@ export default function ProjectDetail() {
   }, [supabase?.configured, id]);
 
   useEffect(() => {
-    if (!project?.slug) return;
+    if (!project?.slug || statsView !== 'live') return;
     const socket = io('/docker', { path: '/socket.io' });
     socket.emit('stats:subscribeProject', { projectSlug: project.slug });
     socket.on('projectStats', (payload: ProjectStatsPayload) => {
@@ -90,7 +96,24 @@ export default function ProjectDetail() {
       socket.emit('stats:unsubscribeProject');
       socket.close();
     };
-  }, [project?.slug]);
+  }, [project?.slug, statsView]);
+
+  useEffect(() => {
+    if (!id || statsView === 'live') {
+      setHistoricalStats(null);
+      return;
+    }
+    setHistoricalLoading(true);
+    const to = new Date();
+    const from = new Date(to.getTime() - 7 * 24 * 60 * 60 * 1000);
+    api
+      .get(
+        `/projects/${id}/stats?interval=${statsView}&from=${from.toISOString()}&to=${to.toISOString()}`,
+      )
+      .then((r) => setHistoricalStats(r.data))
+      .catch(() => setHistoricalStats(null))
+      .finally(() => setHistoricalLoading(false));
+  }, [id, statsView]);
 
   useEffect(() => {
     if (!project?.containerId) return;
@@ -178,25 +201,83 @@ export default function ProjectDetail() {
           }} disabled={supabaseLoading || !project.domains?.length}><Database size={16} /> Setup Supabase</button>
         )}
       </div>
-      {projectStatsHistory.length > 0 && (() => {
-        const last = projectStatsHistory[projectStatsHistory.length - 1];
-        const roles = [...last.meta.containers.map((c) => c.role), 'Total'];
+      <div className={styles.charts}>
+        <h3>Resource Usage</h3>
+        <div className={styles.statsBar}>
+          <label>View:</label>
+          <select value={statsView} onChange={(e) => setStatsView(e.target.value as 'live' | 'minute' | 'hour' | 'day')} className={styles.statsSelect}>
+            <option value="live">Live</option>
+            <option value="minute">Per Minute</option>
+            <option value="hour">Per Hour</option>
+            <option value="day">Per Day</option>
+          </select>
+          {historicalLoading && <span className={styles.loading}>Loading…</span>}
+        </div>
+      {((() => {
+        const isLive = statsView === 'live';
+        const liveHasData = projectStatsHistory.length > 0;
+        const histHasData = historicalStats && historicalStats.data.length > 0;
+        if (!liveHasData && !histHasData) {
+          return historicalLoading ? (
+            <p className={styles.chartHint}>Loading past 7 days…</p>
+          ) : isLive ? (
+            <p className={styles.chartHint}>Waiting for live data…</p>
+          ) : (
+            <p className={styles.chartHint}>No historical data for the last 7 days.</p>
+          );
+        }
+
         const palette = ['#8884d8', '#82ca9d', '#ffc658', '#ff7c7c', '#8dd1e1', '#a4de6c', '#ff8042', '#ffbb28'];
-        const cpuData = projectStatsHistory.map((p, idx) => {
-          const pt: Record<string, number> = { i: idx };
-          for (const m of last.meta.containers) pt[m.role] = p.containers[m.id]?.cpu ?? 0;
-          pt['Total'] = p.totals.cpu;
-          return pt;
-        });
-        const memMbData = projectStatsHistory.map((p, idx) => {
-          const pt: Record<string, number> = { i: idx };
-          for (const m of last.meta.containers) pt[m.role] = p.containers[m.id]?.memoryMb ?? 0;
-          pt['Total'] = p.totals.memoryMb ?? 0;
-          return pt;
-        });
+        let roles: string[];
+        let cpuData: Array<Record<string, number | string>>;
+        let memMbData: Array<Record<string, number | string>>;
+        let xKey = 'i';
+
+        if (isLive && liveHasData) {
+          const last = projectStatsHistory[projectStatsHistory.length - 1];
+          roles = [...last.meta.containers.map((c: { role: string }) => c.role), 'Total'];
+          cpuData = projectStatsHistory.map((p, idx) => {
+            const pt: Record<string, number | string> = { i: idx };
+            for (const m of last.meta.containers) pt[m.role] = p.containers[m.id]?.cpu ?? 0;
+            pt['Total'] = p.totals.cpu;
+            return pt;
+          });
+          memMbData = projectStatsHistory.map((p, idx) => {
+            const pt: Record<string, number | string> = { i: idx };
+            for (const m of last.meta.containers) pt[m.role] = p.containers[m.id]?.memoryMb ?? 0;
+            pt['Total'] = p.totals.memoryMb ?? 0;
+            return pt;
+          });
+        } else if (histHasData && historicalStats) {
+          roles = [...historicalStats.roles, 'Total'];
+          xKey = 't';
+          cpuData = historicalStats.data.map((d) => {
+            const pt: Record<string, number | string> = { t: d.t };
+            for (const role of historicalStats.roles) pt[role] = d.containers[role]?.cpu ?? 0;
+            pt['Total'] = d.totals.cpu;
+            return pt;
+          });
+          memMbData = historicalStats.data.map((d) => {
+            const pt: Record<string, number | string> = { t: d.t };
+            for (const role of historicalStats.roles) pt[role] = d.containers[role]?.memoryMb ?? 0;
+            pt['Total'] = d.totals.memoryMb;
+            return pt;
+          });
+        }
+
         return (
           <div className={styles.charts}>
             <h3>Resource Usage</h3>
+            <div className={styles.statsBar}>
+              <label>View:</label>
+              <select value={statsView} onChange={(e) => setStatsView(e.target.value as 'live' | 'minute' | 'hour' | 'day')} className={styles.statsSelect}>
+                <option value="live">Live</option>
+                <option value="minute">Per Minute</option>
+                <option value="hour">Per Hour</option>
+                <option value="day">Per Day</option>
+              </select>
+              {historicalLoading && <span className={styles.loading}>Loading…</span>}
+            </div>
             <div className={styles.chartRow}>
               <div className={styles.chartBox}>
                 <h4>CPU %</h4>
@@ -218,7 +299,7 @@ export default function ProjectDetail() {
                 <ResponsiveContainer width="100%" height={180}>
                   <LineChart data={memMbData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                    <XAxis dataKey="i" hide />
+                    <XAxis dataKey={xKey} hide={xKey === 'i'} tick={{ fontSize: 10 }} />
                     <YAxis />
                     <Tooltip contentStyle={{ background: 'var(--bg-secondary)' }} formatter={(v: number, name: string) => [v != null ? v.toFixed(2) + ' MB' : '-', name]} />
                     <Legend />
@@ -229,9 +310,9 @@ export default function ProjectDetail() {
                 </ResponsiveContainer>
               </div>
             </div>
-          </div>
         );
       })()}
+      </div>
       <div className={styles.logs}><h3>Logs</h3><pre className={styles.logContent}>{logs || 'No logs'}</pre></div>
     </div>
   );

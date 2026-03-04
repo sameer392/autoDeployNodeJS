@@ -14,6 +14,8 @@ import { Project } from './database/entities/project.entity';
 import { Domain } from './database/entities/domain.entity';
 import { ProjectEnvVar } from './database/entities/project-env-var.entity';
 import { Log } from './database/entities/log.entity';
+import { ResourceStats } from './database/entities/resource-stats.entity';
+import { ResourceStatsModule } from './modules/resource-stats/resource-stats.module';
 
 @Module({
   imports: [
@@ -35,7 +37,7 @@ import { Log } from './database/entities/log.entity';
         username: process.env.DATABASE_USER || 'hosting',
         password: process.env.DATABASE_PASSWORD || 'changeme',
         database: process.env.DATABASE_NAME || 'hosting_panel',
-        entities: [Admin, Project, Domain, ProjectEnvVar, Log],
+        entities: [Admin, Project, Domain, ProjectEnvVar, Log, ResourceStats],
         synchronize: process.env.NODE_ENV === 'development',
         logging: process.env.NODE_ENV === 'development',
         charset: 'utf8mb4',
@@ -46,6 +48,7 @@ import { Log } from './database/entities/log.entity';
     DomainsModule,
     DockerModule,
     LogsModule,
+    ResourceStatsModule,
   ],
 })
 export class AppModule {}

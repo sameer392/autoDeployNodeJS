@@ -6,6 +6,7 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   UseGuards,
   ParseIntPipe,
   Res,
@@ -62,6 +63,23 @@ export class ProjectsController {
   @Get(':id')
   findOne(@CurrentAdmin() admin: Admin, @Param('id', ParseIntPipe) id: number) {
     return this.projectsService.findOne(admin, id);
+  }
+
+  @Get(':id/stats')
+  getResourceStats(
+    @CurrentAdmin() admin: Admin,
+    @Param('id', ParseIntPipe) id: number,
+    @Query('interval') interval?: 'minute' | 'hour' | 'day',
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.projectsService.getResourceStats(
+      admin,
+      id,
+      interval ?? 'hour',
+      from,
+      to,
+    );
   }
 
   @Get(':id/logs')
