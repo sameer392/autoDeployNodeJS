@@ -19,6 +19,19 @@
 .supabase button:disabled { opacity: 0.5; cursor: not-allowed; }
 .supabase button.studioBtn { background: var(--accent); border-color: var(--accent); color: white; }
 .supabase button.studioBtn:hover { filter: brightness(1.1); }
+
+.studioCreds { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; max-width: 520px; }
+.studioCreds h4 { margin: 0 0 1rem; font-size: 0.9rem; font-weight: 600; }
+.credRow { margin-bottom: 0.75rem; }
+.credRow:last-of-type { margin-bottom: 1rem; }
+.credRow label { display: block; font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.25rem; }
+.credInput { display: flex; gap: 0.5rem; align-items: center; }
+.credInput input { flex: 1; padding: 0.5rem 0.75rem; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius); font-family: var(--font-mono); font-size: 0.85rem; color: var(--text-primary); }
+.credInput button { padding: 0.5rem; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; }
+.credInput button:hover { background: var(--border); color: var(--text-primary); }
+.studioLink { display: inline-block; margin-top: 0.5rem; color: var(--accent); font-size: 0.9rem; }
+.studioLink:hover { text-decoration: underline; }
+.credLoading { color: var(--text-secondary); font-size: 0.9rem; }
 .charts { margin-bottom: 2rem; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; }
 .charts h3 { margin-bottom: 1rem; font-size: 1rem; }
 .logs { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; }

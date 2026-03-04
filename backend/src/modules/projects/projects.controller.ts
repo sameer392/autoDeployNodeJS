@@ -127,6 +127,11 @@ export class ProjectsController {
     return this.projectsService.getSupabaseStudioUrl(admin, id);
   }
 
+  @Get(':id/supabase/studio-credentials')
+  getSupabaseStudioCredentials(@CurrentAdmin() admin: Admin, @Param('id', ParseIntPipe) id: number) {
+    return this.projectsService.getSupabaseStudioCredentials(admin, id);
+  }
+
   @Post(':id/supabase/setup')
   setupSupabase(@CurrentAdmin() admin: Admin, @Param('id', ParseIntPipe) id: number) {
     return this.projectsService.setupSupabase(admin, id);

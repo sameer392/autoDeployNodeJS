@@ -25,13 +25,22 @@ export class SupabaseService {
     private readonly dockerService: DockerService,
   ) {}
 
-  /** Get Supabase Studio URL with embedded Basic Auth for auto-login */
+  /**
+   * Get Supabase Studio URL (plain, no credentials in URL).
+   */
   async getStudioUrl(project: Project): Promise<string | null> {
     const ev = await this.envVarRepo.findOne({
       where: { projectId: project.id, key: 'VITE_SUPABASE_URL' },
     });
-    const apiUrl = ev?.value;
-    if (!apiUrl) return null;
+    return ev?.value || null;
+  }
+
+  /**
+   * Get Studio login credentials for manual copy/paste (URL, username, password).
+   */
+  async getStudioCredentials(project: Project): Promise<{ url: string; username: string; password: string } | null> {
+    const url = await this.getStudioUrl(project);
+    if (!url) return null;
     const hostingRoot =
       process.env.HOSTING_PANEL_ROOT ||
       path.resolve(process.cwd(), process.cwd().endsWith('backend') ? '..' : '.');
@@ -40,15 +49,13 @@ export class SupabaseService {
       const envContent = await fs.readFile(path.join(projectDir, '.env'), 'utf-8');
       const userMatch = envContent.match(/DASHBOARD_USERNAME=(.+)/m);
       const passMatch = envContent.match(/DASHBOARD_PASSWORD=(.+)/m);
-      const user = userMatch?.[1]?.trim() || 'supabase';
-      const pass = passMatch?.[1]?.trim() || '';
-      if (!pass) return apiUrl;
-      const u = new URL(apiUrl);
-      u.username = user;
-      u.password = pass;
-      return u.toString();
+      return {
+        url,
+        username: userMatch?.[1]?.trim() || 'supabase',
+        password: passMatch?.[1]?.trim() || '',
+      };
     } catch {
-      return apiUrl;
+      return { url, username: 'supabase', password: '' };
     }
   }
 

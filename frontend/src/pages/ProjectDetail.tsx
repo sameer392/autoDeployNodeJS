@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { io } from 'socket.io-client';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Play, Square, RotateCw, Trash2, ArrowLeft, Database } from 'lucide-react';
+import { Play, Square, RotateCw, Trash2, ArrowLeft, Database, Copy } from 'lucide-react';
 import styles from './ProjectDetail.module.css';
 
 interface Project {
@@ -42,6 +42,16 @@ export default function ProjectDetail() {
   useEffect(() => {
     api.get('/projects/' + id + '/supabase').then((r) => setSupabase(r.data)).catch(() => setSupabase(null));
   }, [id]);
+
+  useEffect(() => {
+    if (supabase?.configured && id) {
+      api.get('/projects/' + id + '/supabase/studio-credentials')
+        .then((r) => setStudioCreds(r.data))
+        .catch(() => setStudioCreds(null));
+    } else {
+      setStudioCreds(null);
+    }
+  }, [supabase?.configured, id]);
 
   useEffect(() => {
     if (!project?.containerId || project.status !== 'running') return;
@@ -89,23 +99,37 @@ export default function ProjectDetail() {
       ) : null}
       <div className={styles.supabase}>
         {supabase?.configured ? (
-          <p>
-            Supabase: <a href={supabase.url} target="_blank" rel="noreferrer">{supabase.url}</a>
-            {' '}
-            <button
-              onClick={async () => {
-                try {
-                  const { data } = await api.get('/projects/' + id + '/supabase/studio-url');
-                  if (data?.url) window.open(data.url, '_blank', 'noopener,noreferrer');
-                } catch (e: any) {
-                  alert(e?.response?.data?.message || 'Could not open Supabase Studio');
-                }
-              }}
-              className={styles.studioBtn}
-            >
-              Open Studio
-            </button>
-          </p>
+          <div className={styles.studioCreds}>
+            <h4>Supabase Studio – copy and use to sign in</h4>
+            {studioCreds ? (
+              <>
+                <div className={styles.credRow}>
+                  <label>URL</label>
+                  <div className={styles.credInput}>
+                    <input type="text" readOnly value={studioCreds.url} />
+                    <button type="button" onClick={() => copyToClipboard(studioCreds!.url)} title="Copy"><Copy size={14} /></button>
+                  </div>
+                </div>
+                <div className={styles.credRow}>
+                  <label>Username</label>
+                  <div className={styles.credInput}>
+                    <input type="text" readOnly value={studioCreds.username} />
+                    <button type="button" onClick={() => copyToClipboard(studioCreds!.username)} title="Copy"><Copy size={14} /></button>
+                  </div>
+                </div>
+                <div className={styles.credRow}>
+                  <label>Password</label>
+                  <div className={styles.credInput}>
+                    <input type="password" readOnly value={studioCreds.password} />
+                    <button type="button" onClick={() => copyToClipboard(studioCreds!.password)} title="Copy"><Copy size={14} /></button>
+                  </div>
+                </div>
+                <a href={studioCreds.url} target="_blank" rel="noreferrer" className={styles.studioLink}>Open Studio →</a>
+              </>
+            ) : (
+              <span className={styles.credLoading}>Loading…</span>
+            )}
+          </div>
         ) : (
           <button onClick={async () => {
             setSupabaseLoading(true);
