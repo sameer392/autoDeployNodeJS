@@ -31,7 +31,17 @@ export default function Dashboard() {
   const [serverStatsHistory, setServerStatsHistory] = useState<
     Array<ServerStatsPayload & { i: number }>
   >([]);
+  const [hiddenLines, setHiddenLines] = useState<Set<string>>(new Set());
   const indexRef = useRef(0);
+
+  const toggleLine = (key: string) => {
+    setHiddenLines((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
   useEffect(() => {
     api.get('/projects').then((r) => {
@@ -109,9 +119,18 @@ export default function Dashboard() {
                   <XAxis dataKey="i" hide tick={{ fontSize: 10 }} />
                   <YAxis />
                   <Tooltip contentStyle={{ background: 'var(--bg-secondary)' }} />
-                  <Legend />
+                  <Legend content={({ payload }) => (
+                    <ul style={{ listStyle: 'none', display: 'flex', flexWrap: 'wrap', gap: '0.75rem', margin: 0, padding: 0, justifyContent: 'center' }}>
+                      {payload?.map((entry) => (
+                        <li key={entry.value} onClick={() => toggleLine(entry.value as string)} className={`${styles.legendItem} ${hiddenLines.has(entry.value as string) ? styles.legendItemDimmed : ''}`} title="Click to show/hide">
+                          <span style={{ width: 14, height: 2, background: entry.color, borderRadius: 1 }} />
+                          <span>{entry.value}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )} />
                   {roles.map((r, i) => (
-                    <Line key={r} type="monotone" dataKey={r} stroke={palette[i % palette.length]} strokeWidth={r === 'Total' ? 2.5 : 1.5} dot={false} />
+                    <Line key={r} type="monotone" dataKey={r} stroke={palette[i % palette.length]} strokeWidth={r === 'Total' ? 2.5 : 1.5} dot={false} hide={hiddenLines.has(r)} />
                   ))}
                 </LineChart>
               </ResponsiveContainer>
@@ -124,9 +143,18 @@ export default function Dashboard() {
                   <XAxis dataKey="i" hide tick={{ fontSize: 10 }} />
                   <YAxis />
                   <Tooltip contentStyle={{ background: 'var(--bg-secondary)' }} formatter={(v: number, name: string) => [v != null ? v.toFixed(1) + ' MB' : '-', name]} />
-                  <Legend />
+                  <Legend content={({ payload }) => (
+                    <ul style={{ listStyle: 'none', display: 'flex', flexWrap: 'wrap', gap: '0.75rem', margin: 0, padding: 0, justifyContent: 'center' }}>
+                      {payload?.map((entry) => (
+                        <li key={entry.value} onClick={() => toggleLine(entry.value as string)} style={{ cursor: 'pointer', opacity: hiddenLines.has(entry.value as string) ? 0.4 : 1, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                          <span style={{ width: 14, height: 2, background: entry.color, borderRadius: 1 }} />
+                          <span>{entry.value}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )} />
                   {roles.map((r, i) => (
-                    <Line key={r} type="monotone" dataKey={r} stroke={palette[i % palette.length]} strokeWidth={r === 'Total' ? 2.5 : 1.5} dot={false} />
+                    <Line key={r} type="monotone" dataKey={r} stroke={palette[i % palette.length]} strokeWidth={r === 'Total' ? 2.5 : 1.5} dot={false} hide={hiddenLines.has(r)} />
                   ))}
                 </LineChart>
               </ResponsiveContainer>

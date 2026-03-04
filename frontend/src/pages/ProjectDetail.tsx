@@ -48,6 +48,16 @@ export default function ProjectDetail() {
   const [studioCreds, setStudioCreds] = useState<{ url: string; username: string; password: string } | null>(null);
   const [studioCredsLoading, setStudioCredsLoading] = useState(false);
   const [studioCredsError, setStudioCredsError] = useState<string | null>(null);
+  const [hiddenLines, setHiddenLines] = useState<Set<string>>(new Set());
+
+  const toggleLine = (key: string) => {
+    setHiddenLines((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text).then(() => {}).catch(() => {});
@@ -225,9 +235,18 @@ export default function ProjectDetail() {
               <XAxis dataKey={xKey} hide={xKey === 'i'} tick={{ fontSize: 10 }} />
               <YAxis />
               <Tooltip contentStyle={{ background: 'var(--bg-secondary)' }} />
-              <Legend />
+              <Legend content={({ payload }) => (
+                <ul style={{ listStyle: 'none', display: 'flex', flexWrap: 'wrap', gap: '0.75rem', margin: 0, padding: 0, justifyContent: 'center' }}>
+                  {payload?.map((entry) => (
+                    <li key={entry.value} onClick={() => toggleLine(entry.value as string)} className={`${styles.legendItem} ${hiddenLines.has(entry.value as string) ? styles.legendItemDimmed : ''}`} title="Click to show/hide">
+                      <span style={{ width: 14, height: 2, background: entry.color, borderRadius: 1 }} />
+                      <span>{entry.value}</span>
+                    </li>
+                  ))}
+                </ul>
+              )} />
               {roles.map((r, i) => (
-                <Line key={r} type="monotone" dataKey={r} stroke={palette[i % palette.length]} strokeWidth={r === 'Total' ? 2.5 : 1.5} dot={false} />
+                <Line key={r} type="monotone" dataKey={r} stroke={palette[i % palette.length]} strokeWidth={r === 'Total' ? 2.5 : 1.5} dot={false} hide={hiddenLines.has(r)} />
               ))}
             </LineChart>
           </ResponsiveContainer>
@@ -240,9 +259,18 @@ export default function ProjectDetail() {
               <XAxis dataKey={xKey} hide={xKey === 'i'} tick={{ fontSize: 10 }} />
               <YAxis />
               <Tooltip contentStyle={{ background: 'var(--bg-secondary)' }} formatter={(v: number, name: string) => [v != null ? v.toFixed(2) + ' MB' : '-', name]} />
-              <Legend />
+              <Legend content={({ payload }) => (
+                <ul style={{ listStyle: 'none', display: 'flex', flexWrap: 'wrap', gap: '0.75rem', margin: 0, padding: 0, justifyContent: 'center' }}>
+                  {payload?.map((entry) => (
+                    <li key={entry.value} onClick={() => toggleLine(entry.value as string)} className={`${styles.legendItem} ${hiddenLines.has(entry.value as string) ? styles.legendItemDimmed : ''}`} title="Click to show/hide">
+                      <span style={{ width: 14, height: 2, background: entry.color, borderRadius: 1 }} />
+                      <span>{entry.value}</span>
+                    </li>
+                  ))}
+                </ul>
+              )} />
               {roles.map((r, i) => (
-                <Line key={r} type="monotone" dataKey={r} stroke={palette[i % palette.length]} strokeWidth={r === 'Total' ? 2.5 : 1.5} dot={false} />
+                <Line key={r} type="monotone" dataKey={r} stroke={palette[i % palette.length]} strokeWidth={r === 'Total' ? 2.5 : 1.5} dot={false} hide={hiddenLines.has(r)} />
               ))}
             </LineChart>
           </ResponsiveContainer>
