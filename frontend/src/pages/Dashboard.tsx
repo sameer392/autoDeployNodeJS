@@ -17,7 +17,8 @@ interface Project {
 
 interface ServerStatsPayload {
   byProject: Record<string, { name: string; cpu: number; memoryMb: number }>;
-  other: { cpu: number; memoryMb: number };
+  otherDocker: { cpu: number; memoryMb: number };
+  others: { cpu: number; memoryMb: number };
   total: { cpu: number; memoryMb: number };
 }
 
@@ -64,13 +65,14 @@ export default function Dashboard() {
   const palette = ['#8884d8', '#82ca9d', '#ffc658', '#ff7c7c', '#8dd1e1', '#a4de6c', '#ff8042', '#ffbb28'];
   const last = serverStatsHistory[serverStatsHistory.length - 1];
   const roles: string[] = last
-    ? [...Object.keys(last.byProject).map((slug) => last.byProject[slug].name), 'Other', 'Total']
+    ? [...Object.keys(last.byProject).map((slug) => last.byProject[slug].name), 'Docker Usages', 'OS + System Usages', 'Total']
     : [];
   const cpuData = serverStatsHistory.map((p, idx) => {
     const pt: Record<string, number | string> = { i: idx };
     if (p) {
       for (const slug of Object.keys(p.byProject)) pt[p.byProject[slug].name] = p.byProject[slug].cpu;
-      pt['Other'] = p.other.cpu;
+      pt['Docker Usages'] = p.otherDocker.cpu;
+      pt['OS + System Usages'] = p.others.cpu;
       pt['Total'] = p.total.cpu;
     }
     return pt;
@@ -79,7 +81,8 @@ export default function Dashboard() {
     const pt: Record<string, number | string> = { i: idx };
     if (p) {
       for (const slug of Object.keys(p.byProject)) pt[p.byProject[slug].name] = p.byProject[slug].memoryMb;
-      pt['Other'] = p.other.memoryMb;
+      pt['Docker Usages'] = p.otherDocker.memoryMb;
+      pt['OS + System Usages'] = p.others.memoryMb;
       pt['Total'] = p.total.memoryMb;
     }
     return pt;

@@ -3,13 +3,18 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Project } from '../../database/entities/project.entity';
 import { DockerService } from '../docker/docker.service';
+import { HostMetricsService } from './host-metrics.service';
 
 export interface ServerStatsPayload {
   byProject: Record<
     string,
     { name: string; cpu: number; memoryMb: number }
   >;
-  other: { cpu: number; memoryMb: number };
+  /** Other Docker containers (MySQL, Redis, Traefik, backend, etc.) */
+  otherDocker: { cpu: number; memoryMb: number };
+  /** Non-Docker host processes (OS, SSH, kernel, etc.) */
+  others: { cpu: number; memoryMb: number };
+  /** Host total (matches top / system) */
   total: { cpu: number; memoryMb: number };
 }
 
@@ -19,6 +24,7 @@ export class ServerStatsService {
     @InjectRepository(Project)
     private readonly projectRepo: Repository<Project>,
     private readonly dockerService: DockerService,
+    private readonly hostMetricsService: HostMetricsService,
   ) {}
 
   async getServerStats(): Promise<ServerStatsPayload> {
@@ -38,8 +44,8 @@ export class ServerStatsService {
     );
 
     const byProject: Record<string, { name: string; cpu: number; memoryMb: number }> = {};
-    let otherCpu = 0;
-    let otherMemoryMb = 0;
+    let otherDockerCpu = 0;
+    let otherDockerMemoryMb = 0;
 
     for (const { name, stats } of allStats) {
       if (!stats) continue;
@@ -62,21 +68,31 @@ export class ServerStatsService {
         }
       }
       if (!assigned) {
-        otherCpu += stats.cpu;
-        otherMemoryMb += memoryMb;
+        otherDockerCpu += stats.cpu;
+        otherDockerMemoryMb += memoryMb;
       }
     }
 
-    let totalCpu = otherCpu;
-    let totalMemoryMb = otherMemoryMb;
-    for (const p of Object.values(byProject)) {
-      totalCpu += p.cpu;
-      totalMemoryMb += p.memoryMb;
+    const dockerTotalCpu = otherDockerCpu + Object.values(byProject).reduce((s, p) => s + p.cpu, 0);
+    const dockerTotalMemoryMb = otherDockerMemoryMb + Object.values(byProject).reduce((s, p) => s + p.memoryMb, 0);
+
+    const hostMetrics = await this.hostMetricsService.getHostMetrics();
+    let othersCpu = 0;
+    let othersMemoryMb = 0;
+    let totalCpu = dockerTotalCpu;
+    let totalMemoryMb = dockerTotalMemoryMb;
+
+    if (hostMetrics) {
+      totalCpu = hostMetrics.cpuPct;
+      totalMemoryMb = hostMetrics.memoryUsedMb;
+      othersCpu = Math.max(0, hostMetrics.cpuPct - dockerTotalCpu);
+      othersMemoryMb = Math.max(0, hostMetrics.memoryUsedMb - dockerTotalMemoryMb);
     }
 
     return {
       byProject,
-      other: { cpu: otherCpu, memoryMb: otherMemoryMb },
+      otherDocker: { cpu: otherDockerCpu, memoryMb: otherDockerMemoryMb },
+      others: { cpu: othersCpu, memoryMb: othersMemoryMb },
       total: { cpu: totalCpu, memoryMb: totalMemoryMb },
     };
   }
