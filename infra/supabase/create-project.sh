@@ -185,6 +185,7 @@ services:
       - "traefik.http.routers.supabase-${SLUG}.service=supabase-${SLUG}-kong"
       - "traefik.http.routers.supabase-${SLUG}.tls=true"
       - "traefik.http.routers.supabase-${SLUG}.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.supabase-${SLUG}.tls.options=default"
       - "traefik.http.services.supabase-${SLUG}-kong.loadbalancer.server.port=8000"
     networks:
       - default
