@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { io } from 'socket.io-client';
@@ -134,6 +134,107 @@ export default function ProjectDetail() {
 
   const statusColor = project.status === 'running' ? 'var(--success)' : project.status === 'stopped' ? 'var(--error)' : 'var(--warning)';
 
+  const palette = ['#8884d8', '#82ca9d', '#ffc658', '#ff7c7c', '#8dd1e1', '#a4de6c', '#ff8042', '#ffbb28'];
+  const isLive = statsView === 'live';
+  const liveHasData = projectStatsHistory.length > 0;
+  const histHasData = historicalStats && historicalStats.data.length > 0;
+
+  let chartContent: React.ReactNode;
+  if (!liveHasData && !histHasData) {
+    chartContent = historicalLoading ? (
+      <p className={styles.chartHint}>Loading past 7 days…</p>
+    ) : isLive ? (
+      <p className={styles.chartHint}>Waiting for live data…</p>
+    ) : (
+      <p className={styles.chartHint}>No historical data for the last 7 days.</p>
+    );
+  } else {
+    let roles: string[];
+    let cpuData: Array<Record<string, number | string>>;
+    let memMbData: Array<Record<string, number | string>>;
+    let xKey: string = 'i';
+    if (isLive && liveHasData) {
+      const last = projectStatsHistory[projectStatsHistory.length - 1];
+      roles = [...last.meta.containers.map((c) => c.role), 'Total'];
+      cpuData = projectStatsHistory.map((p, idx) => {
+        const pt: Record<string, number | string> = { i: idx };
+        for (const m of last.meta.containers) pt[m.role] = p.containers[m.id]?.cpu ?? 0;
+        pt['Total'] = p.totals.cpu;
+        return pt;
+      });
+      memMbData = projectStatsHistory.map((p, idx) => {
+        const pt: Record<string, number | string> = { i: idx };
+        for (const m of last.meta.containers) pt[m.role] = p.containers[m.id]?.memoryMb ?? 0;
+        pt['Total'] = p.totals.memoryMb ?? 0;
+        return pt;
+      });
+    } else if (histHasData && historicalStats) {
+      roles = [...historicalStats.roles, 'Total'];
+      xKey = 't';
+      cpuData = historicalStats.data.map((d) => {
+        const pt: Record<string, number | string> = { t: d.t };
+        for (const role of historicalStats.roles) pt[role] = d.containers[role]?.cpu ?? 0;
+        pt['Total'] = d.totals.cpu;
+        return pt;
+      });
+      memMbData = historicalStats.data.map((d) => {
+        const pt: Record<string, number | string> = { t: d.t };
+        for (const role of historicalStats.roles) pt[role] = d.containers[role]?.memoryMb ?? 0;
+        pt['Total'] = d.totals.memoryMb;
+        return pt;
+      });
+    } else {
+      const last = projectStatsHistory[projectStatsHistory.length - 1];
+      roles = [...last.meta.containers.map((c) => c.role), 'Total'];
+      cpuData = projectStatsHistory.map((p, idx) => {
+        const pt: Record<string, number | string> = { i: idx };
+        for (const m of last.meta.containers) pt[m.role] = p.containers[m.id]?.cpu ?? 0;
+        pt['Total'] = p.totals.cpu;
+        return pt;
+      });
+      memMbData = projectStatsHistory.map((p, idx) => {
+        const pt: Record<string, number | string> = { i: idx };
+        for (const m of last.meta.containers) pt[m.role] = p.containers[m.id]?.memoryMb ?? 0;
+        pt['Total'] = p.totals.memoryMb ?? 0;
+        return pt;
+      });
+    }
+    chartContent = (
+      <div className={styles.chartRow}>
+        <div className={styles.chartBox}>
+          <h4>CPU %</h4>
+          <ResponsiveContainer width="100%" height={180}>
+            <LineChart data={cpuData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+              <XAxis dataKey={xKey} hide={xKey === 'i'} tick={{ fontSize: 10 }} />
+              <YAxis />
+              <Tooltip contentStyle={{ background: 'var(--bg-secondary)' }} />
+              <Legend />
+              {roles.map((r, i) => (
+                <Line key={r} type="monotone" dataKey={r} stroke={palette[i % palette.length]} strokeWidth={r === 'Total' ? 2.5 : 1.5} dot={false} />
+              ))}
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+        <div className={styles.chartBox}>
+          <h4>Memory (MB)</h4>
+          <ResponsiveContainer width="100%" height={180}>
+            <LineChart data={memMbData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+              <XAxis dataKey={xKey} hide={xKey === 'i'} tick={{ fontSize: 10 }} />
+              <YAxis />
+              <Tooltip contentStyle={{ background: 'var(--bg-secondary)' }} formatter={(v: number, name: string) => [v != null ? v.toFixed(2) + ' MB' : '-', name]} />
+              <Legend />
+              {roles.map((r, i) => (
+                <Line key={r} type="monotone" dataKey={r} stroke={palette[i % palette.length]} strokeWidth={r === 'Total' ? 2.5 : 1.5} dot={false} />
+              ))}
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.page}>
       <button onClick={() => navigate('/')} className={styles.back}><ArrowLeft size={18} /> Back</button>
@@ -213,109 +314,7 @@ export default function ProjectDetail() {
           </select>
           {historicalLoading && <span className={styles.loading}>Loading…</span>}
         </div>
-      {((() => {
-        const isLive = statsView === 'live';
-        const liveHasData = projectStatsHistory.length > 0;
-        const histHasData = historicalStats && historicalStats.data.length > 0;
-        if (!liveHasData && !histHasData) {
-          return historicalLoading ? (
-            <p className={styles.chartHint}>Loading past 7 days…</p>
-          ) : isLive ? (
-            <p className={styles.chartHint}>Waiting for live data…</p>
-          ) : (
-            <p className={styles.chartHint}>No historical data for the last 7 days.</p>
-          );
-        }
-
-        const palette = ['#8884d8', '#82ca9d', '#ffc658', '#ff7c7c', '#8dd1e1', '#a4de6c', '#ff8042', '#ffbb28'];
-        let roles: string[];
-        let cpuData: Array<Record<string, number | string>>;
-        let memMbData: Array<Record<string, number | string>>;
-        let xKey = 'i';
-
-        if (isLive && liveHasData) {
-          const last = projectStatsHistory[projectStatsHistory.length - 1];
-          roles = [...last.meta.containers.map((c: { role: string }) => c.role), 'Total'];
-          cpuData = projectStatsHistory.map((p, idx) => {
-            const pt: Record<string, number | string> = { i: idx };
-            for (const m of last.meta.containers) pt[m.role] = p.containers[m.id]?.cpu ?? 0;
-            pt['Total'] = p.totals.cpu;
-            return pt;
-          });
-          memMbData = projectStatsHistory.map((p, idx) => {
-            const pt: Record<string, number | string> = { i: idx };
-            for (const m of last.meta.containers) pt[m.role] = p.containers[m.id]?.memoryMb ?? 0;
-            pt['Total'] = p.totals.memoryMb ?? 0;
-            return pt;
-          });
-        } else if (histHasData && historicalStats) {
-          roles = [...historicalStats.roles, 'Total'];
-          xKey = 't';
-          cpuData = historicalStats.data.map((d) => {
-            const pt: Record<string, number | string> = { t: d.t };
-            for (const role of historicalStats.roles) pt[role] = d.containers[role]?.cpu ?? 0;
-            pt['Total'] = d.totals.cpu;
-            return pt;
-          });
-          memMbData = historicalStats.data.map((d) => {
-            const pt: Record<string, number | string> = { t: d.t };
-            for (const role of historicalStats.roles) pt[role] = d.containers[role]?.memoryMb ?? 0;
-            pt['Total'] = d.totals.memoryMb;
-            return pt;
-          });
-        } else {
-          const last = projectStatsHistory[projectStatsHistory.length - 1];
-          roles = [...last.meta.containers.map((c: { role: string }) => c.role), 'Total'];
-          xKey = 'i';
-          cpuData = projectStatsHistory.map((p, idx) => {
-            const pt: Record<string, number | string> = { i: idx };
-            for (const m of last.meta.containers) pt[m.role] = p.containers[m.id]?.cpu ?? 0;
-            pt['Total'] = p.totals.cpu;
-            return pt;
-          });
-          memMbData = projectStatsHistory.map((p, idx) => {
-            const pt: Record<string, number | string> = { i: idx };
-            for (const m of last.meta.containers) pt[m.role] = p.containers[m.id]?.memoryMb ?? 0;
-            pt['Total'] = p.totals.memoryMb ?? 0;
-            return pt;
-          });
-        }
-
-        return (
-          <div className={styles.chartRow}>
-              <div className={styles.chartBox}>
-                <h4>CPU %</h4>
-                <ResponsiveContainer width="100%" height={180}>
-                  <LineChart data={cpuData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                    <XAxis dataKey={xKey} hide={xKey === 'i'} tick={{ fontSize: 10 }} />
-                    <YAxis />
-                    <Tooltip contentStyle={{ background: 'var(--bg-secondary)' }} />
-                    <Legend />
-                    {roles.map((r, i) => (
-                      <Line key={r} type="monotone" dataKey={r} stroke={palette[i % palette.length]} strokeWidth={r === 'Total' ? 2.5 : 1.5} dot={false} />
-                    ))}
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-              <div className={styles.chartBox}>
-                <h4>Memory (MB)</h4>
-                <ResponsiveContainer width="100%" height={180}>
-                  <LineChart data={memMbData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                    <XAxis dataKey={xKey} hide={xKey === 'i'} tick={{ fontSize: 10 }} />
-                    <YAxis />
-                    <Tooltip contentStyle={{ background: 'var(--bg-secondary)' }} formatter={(v: number, name: string) => [v != null ? v.toFixed(2) + ' MB' : '-', name]} />
-                    <Legend />
-                    {roles.map((r, i) => (
-                      <Line key={r} type="monotone" dataKey={r} stroke={palette[i % palette.length]} strokeWidth={r === 'Total' ? 2.5 : 1.5} dot={false} />
-                    ))}
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-          </div>
-        );
-      })()}
+        {chartContent}
       </div>
       <div className={styles.logs}><h3>Logs</h3><pre className={styles.logContent}>{logs || 'No logs'}</pre></div>
     </div>
