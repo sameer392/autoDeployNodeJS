@@ -84,7 +84,12 @@ export default function ProjectDetail() {
 
   useEffect(() => {
     if (!project?.slug || statsView !== 'live') return;
-    const socket = io('/docker', { path: '/socket.io' });
+    const base = import.meta.env.VITE_API_URL || '/api';
+    const socketUrl = base.startsWith('http') ? new URL(base).origin : undefined;
+    const socket = io(socketUrl ? `${socketUrl.replace(/\/$/, '')}/docker` : '/docker', {
+      path: '/socket.io',
+      transports: ['websocket', 'polling'],
+    });
     socket.emit('stats:subscribeProject', { projectSlug: project.slug });
     socket.on('projectStats', (payload: ProjectStatsPayload) => {
       setProjectStatsHistory((prev) => {
@@ -103,16 +108,21 @@ export default function ProjectDetail() {
       setHistoricalStats(null);
       return;
     }
-    setHistoricalLoading(true);
-    const to = new Date();
-    const from = new Date(to.getTime() - 7 * 24 * 60 * 60 * 1000);
-    api
-      .get(
-        `/projects/${id}/stats?interval=${statsView}&from=${from.toISOString()}&to=${to.toISOString()}`,
-      )
-      .then((r) => setHistoricalStats(r.data))
-      .catch(() => setHistoricalStats(null))
-      .finally(() => setHistoricalLoading(false));
+    const fetchHistorical = () => {
+      setHistoricalLoading(true);
+      const to = new Date();
+      const from = new Date(to.getTime() - 7 * 24 * 60 * 60 * 1000);
+      api
+        .get(
+          `/projects/${id}/stats?interval=${statsView}&from=${from.toISOString()}&to=${to.toISOString()}`,
+        )
+        .then((r) => setHistoricalStats(r.data))
+        .catch(() => setHistoricalStats(null))
+        .finally(() => setHistoricalLoading(false));
+    };
+    fetchHistorical();
+    const interval = setInterval(fetchHistorical, 60000); // refresh every 60s
+    return () => clearInterval(interval);
   }, [id, statsView]);
 
   useEffect(() => {
@@ -318,6 +328,25 @@ export default function ProjectDetail() {
             <option value="hour">Per Hour</option>
             <option value="day">Per Day</option>
           </select>
+          {statsView !== 'live' && (
+            <button
+              type="button"
+              className={styles.refreshBtn}
+              onClick={() => {
+                if (!id) return;
+                setHistoricalLoading(true);
+                const to = new Date();
+                const from = new Date(to.getTime() - 7 * 24 * 60 * 60 * 1000);
+                api.get(`/projects/${id}/stats?interval=${statsView}&from=${from.toISOString()}&to=${to.toISOString()}`)
+                  .then((r) => setHistoricalStats(r.data))
+                  .catch(() => setHistoricalStats(null))
+                  .finally(() => setHistoricalLoading(false));
+              }}
+              disabled={historicalLoading}
+            >
+              Refresh
+            </button>
+          )}
           {historicalLoading && <span className={styles.loading}>Loading…</span>}
         </div>
         {chartContent}

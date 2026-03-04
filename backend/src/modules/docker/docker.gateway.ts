@@ -128,7 +128,8 @@ export class DockerGateway implements OnGatewayConnection, OnGatewayDisconnect {
     };
 
     fetchAndEmit(); // first fetch immediately
-    const interval = setInterval(fetchAndEmit, 2000);
+    const LIVE_INTERVAL_MS = 2000; // emit every 2 seconds for live view
+    const interval = setInterval(fetchAndEmit, LIVE_INTERVAL_MS);
     this.projectSubscriptions.set(client.id, interval);
   }
 

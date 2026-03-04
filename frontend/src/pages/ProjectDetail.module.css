@@ -39,6 +39,9 @@
 .statsBar label { font-size: 0.9rem; color: var(--text-secondary); }
 .statsSelect { padding: 0.4rem 0.75rem; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text-primary); font-size: 0.9rem; }
 .statsBar .loading { font-size: 0.85rem; color: var(--text-secondary); }
+.refreshBtn { padding: 0.4rem 0.75rem; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text-primary); font-size: 0.85rem; cursor: pointer; }
+.refreshBtn:hover:not(:disabled) { background: var(--border); }
+.refreshBtn:disabled { opacity: 0.6; cursor: not-allowed; }
 .chartHint { margin: 0.5rem 0 0; font-size: 0.85rem; color: var(--text-secondary); }
 .chartRow { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
 @media (max-width: 768px) { .chartRow { grid-template-columns: 1fr; } }
