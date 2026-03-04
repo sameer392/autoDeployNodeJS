@@ -263,28 +263,32 @@ export default function ProjectDetail() {
             pt['Total'] = d.totals.memoryMb;
             return pt;
           });
+        } else {
+          const last = projectStatsHistory[projectStatsHistory.length - 1];
+          roles = [...last.meta.containers.map((c: { role: string }) => c.role), 'Total'];
+          xKey = 'i';
+          cpuData = projectStatsHistory.map((p, idx) => {
+            const pt: Record<string, number | string> = { i: idx };
+            for (const m of last.meta.containers) pt[m.role] = p.containers[m.id]?.cpu ?? 0;
+            pt['Total'] = p.totals.cpu;
+            return pt;
+          });
+          memMbData = projectStatsHistory.map((p, idx) => {
+            const pt: Record<string, number | string> = { i: idx };
+            for (const m of last.meta.containers) pt[m.role] = p.containers[m.id]?.memoryMb ?? 0;
+            pt['Total'] = p.totals.memoryMb ?? 0;
+            return pt;
+          });
         }
 
         return (
-          <div className={styles.charts}>
-            <h3>Resource Usage</h3>
-            <div className={styles.statsBar}>
-              <label>View:</label>
-              <select value={statsView} onChange={(e) => setStatsView(e.target.value as 'live' | 'minute' | 'hour' | 'day')} className={styles.statsSelect}>
-                <option value="live">Live</option>
-                <option value="minute">Per Minute</option>
-                <option value="hour">Per Hour</option>
-                <option value="day">Per Day</option>
-              </select>
-              {historicalLoading && <span className={styles.loading}>Loading…</span>}
-            </div>
-            <div className={styles.chartRow}>
+          <div className={styles.chartRow}>
               <div className={styles.chartBox}>
                 <h4>CPU %</h4>
                 <ResponsiveContainer width="100%" height={180}>
                   <LineChart data={cpuData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                    <XAxis dataKey="i" hide />
+                    <XAxis dataKey={xKey} hide={xKey === 'i'} tick={{ fontSize: 10 }} />
                     <YAxis />
                     <Tooltip contentStyle={{ background: 'var(--bg-secondary)' }} />
                     <Legend />
@@ -309,7 +313,7 @@ export default function ProjectDetail() {
                   </LineChart>
                 </ResponsiveContainer>
               </div>
-            </div>
+          </div>
         );
       })()}
       </div>
