@@ -78,14 +78,15 @@ export class DockerGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return;
     }
 
-    const interval = setInterval(async () => {
+    const fetchAndEmit = async () => {
+      const results = await Promise.all(
+        containers.map((c) => this.dockerService.getContainerStats(c.id).then((s) => ({ c, stats: s }))),
+      );
       const allStats: Record<string, { name: string; role: string; cpu: number; memPct: number; memoryMb: number }> = {};
       let totalCpu = 0;
       let totalMemUsed = 0;
       let totalMemLimit = 0;
-
-      for (const c of containers) {
-        const stats = await this.dockerService.getContainerStats(c.id);
+      for (const { c, stats } of results) {
         if (stats) {
           const memoryMb = stats.memory / (1024 * 1024);
           allStats[c.id] = { name: stats.name, role: c.role, cpu: stats.cpu, memPct: stats.memPct, memoryMb };
@@ -94,7 +95,6 @@ export class DockerGateway implements OnGatewayConnection, OnGatewayDisconnect {
           totalMemLimit += stats.memoryLimit;
         }
       }
-
       const totalMemPct = totalMemLimit > 0 ? (totalMemUsed / totalMemLimit) * 100 : 0;
       const totalMemoryMb = totalMemUsed / (1024 * 1024);
       client.emit('projectStats', {
@@ -102,8 +102,10 @@ export class DockerGateway implements OnGatewayConnection, OnGatewayDisconnect {
         totals: { cpu: totalCpu, memPct: totalMemPct, memoryMb: totalMemoryMb },
         meta: { containers: containers.map((c) => ({ id: c.id, name: c.name, role: c.role })) },
       });
-    }, 2000);
+    };
 
+    fetchAndEmit(); // first fetch immediately
+    const interval = setInterval(fetchAndEmit, 2000);
     this.projectSubscriptions.set(client.id, interval);
   }
 
