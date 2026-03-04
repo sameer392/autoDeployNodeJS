@@ -116,11 +116,17 @@ export default function ProjectDetail() {
   }, [id, statsView]);
 
   useEffect(() => {
-    if (!project?.containerId) return;
+    if (!id || !project) return;
     const token = localStorage.getItem('token');
-    fetch('/api/projects/' + id + '/logs', { headers: { Authorization: 'Bearer ' + token } })
-      .then((r) => r.text()).then(setLogs).catch(() => setLogs('Failed to load logs'));
-  }, [id, project?.containerId]);
+    const base = import.meta.env.VITE_API_URL || '/api';
+    fetch(`${base}/projects/${id}/logs`, { headers: { Authorization: 'Bearer ' + token } })
+      .then((r) => {
+        if (!r.ok) return r.text().then((t) => { throw new Error(t || r.statusText); });
+        return r.text();
+      })
+      .then(setLogs)
+      .catch((e) => setLogs('Failed to load logs: ' + (e?.message || 'Unknown error')));
+  }, [id, project]);
 
   const control = async (action: string) => {
     try {

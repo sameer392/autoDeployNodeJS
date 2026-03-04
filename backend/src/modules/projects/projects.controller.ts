@@ -88,17 +88,33 @@ export class ProjectsController {
     @Param('id', ParseIntPipe) id: number,
     @Res() res: Response,
   ) {
-    const project = await this.projectsService.findOne(admin, id);
-    if (!project.containerId) {
-      return res.status(400).json({ message: 'Container not running' });
+    try {
+      const project = await this.projectsService.findOne(admin, id);
+      let containerId = project.containerId;
+      if (!containerId) {
+        containerId = await this.dockerService.findContainerByName(project.slug);
+        if (!containerId) {
+          return res.status(400).json({ message: 'Container not running' });
+        }
+      }
+      const exists = await this.dockerService.containerExists(containerId);
+      if (!exists) {
+        return res.status(400).json({ message: 'Container not found or not running' });
+      }
+      const logStream = await this.dockerService.getContainerLogs(
+        containerId,
+        { tail: 500, follow: false },
+      );
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-cache');
+      logStream.on('error', () => {
+        try { res.end(); } catch { /* already closed */ }
+      });
+      logStream.pipe(res);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to fetch logs';
+      res.status(500).setHeader('Content-Type', 'text/plain').send('Error: ' + msg);
     }
-    const logStream = await this.dockerService.getContainerLogs(
-      project.containerId,
-      { tail: 500, follow: false },
-    );
-    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-    res.setHeader('Transfer-Encoding', 'chunked');
-    logStream.pipe(res);
   }
 
   @Patch(':id')
