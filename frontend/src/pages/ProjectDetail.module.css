@@ -45,7 +45,7 @@
 .chartHint { margin: 0.5rem 0 0; font-size: 0.85rem; color: var(--text-secondary); }
 .legendItem { cursor: pointer; display: flex; align-items: center; gap: 0.35rem; }
 .legendItem:hover { opacity: 0.9; }
-.legendItemDimmed { opacity: 0.4; }
+.legendItemDimmed { opacity: 0.4; text-decoration: line-through; }
 .chartRow { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
 @media (max-width: 768px) { .chartRow { grid-template-columns: 1fr; } }
 .chartBox { min-width: 0; }

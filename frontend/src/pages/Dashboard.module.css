@@ -9,7 +9,7 @@
 .chartHint { margin: 0.5rem 0 0; font-size: 0.85rem; color: var(--text-secondary); }
 .legendItem { cursor: pointer; display: flex; align-items: center; gap: 0.35rem; }
 .legendItem:hover { opacity: 0.9; }
-.legendItemDimmed { opacity: 0.4; }
+.legendItemDimmed { opacity: 0.4; text-decoration: line-through; }
 .header h1 { font-size: 1.5rem; }
 .btn { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: var(--accent); color: var(--bg-primary); border-radius: var(--radius); font-weight: 500; }
 .btn:hover { background: var(--accent-hover); color: var(--bg-primary); text-decoration: none; }
