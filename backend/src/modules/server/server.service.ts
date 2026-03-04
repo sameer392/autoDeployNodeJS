@@ -83,10 +83,12 @@ export class ServerStatsService {
     let totalMemoryMb = dockerTotalMemoryMb;
 
     if (hostMetrics) {
-      totalCpu = hostMetrics.cpuPct;
       totalMemoryMb = hostMetrics.memoryUsedMb;
-      othersCpu = Math.max(0, hostMetrics.cpuPct - dockerTotalCpu);
       othersMemoryMb = Math.max(0, hostMetrics.memoryUsedMb - dockerTotalMemoryMb);
+      // Use max(host, docker) for CPU so Total >= sum(components); avoids timing mismatch
+      // when host is sampled 300ms after Docker. Others = Total - Docker.
+      totalCpu = Math.max(hostMetrics.cpuPct, dockerTotalCpu);
+      othersCpu = Math.max(0, totalCpu - dockerTotalCpu);
     }
 
     return {

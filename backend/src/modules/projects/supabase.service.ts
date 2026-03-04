@@ -123,10 +123,14 @@ export class SupabaseService {
       this.logger.debug(`Supabase stdout: ${stdout}`);
       if (stderr) this.logger.warn(`Supabase stderr: ${stderr}`);
     } catch (err: any) {
-      this.logger.error(`Supabase provisioning failed: ${err?.message}`);
-      throw new BadRequestException(
-        `Supabase setup failed: ${err?.message || 'Unknown error'}. Check backend logs.`,
-      );
+      const stderr = err?.stderr || '';
+      const stdout = err?.stdout || '';
+      const detail = [stderr, stdout].filter(Boolean).join('\n').trim().slice(-3000); // last 3k chars
+      this.logger.error(`Supabase provisioning failed: ${err?.message}\n${detail}`);
+      const msg = detail
+        ? `Supabase setup failed: ${err?.message || 'Unknown error'}\n\nLast output:\n${detail}`
+        : `Supabase setup failed: ${err?.message || 'Unknown error'}. Run manually for details: ${scriptPath} "${supabaseSlug}" "${domain}"`;
+      throw new BadRequestException(msg);
     }
 
     const apiUrl = `https://api.${domain}`;
