@@ -34,6 +34,13 @@ export default function ProjectDetail() {
   const [loading, setLoading] = useState(true);
   const [supabase, setSupabase] = useState<SupabaseStatus | null>(null);
   const [supabaseLoading, setSupabaseLoading] = useState(false);
+  const [studioCreds, setStudioCreds] = useState<{ url: string; username: string; password: string } | null>(null);
+  const [studioCredsLoading, setStudioCredsLoading] = useState(false);
+  const [studioCredsError, setStudioCredsError] = useState<string | null>(null);
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text).then(() => {}).catch(() => {});
+  };
 
   useEffect(() => {
     api.get('/projects/' + id).then((r) => { setProject(r.data); setLoading(false); }).catch(() => setLoading(false));
@@ -44,13 +51,24 @@ export default function ProjectDetail() {
   }, [id]);
 
   useEffect(() => {
-    if (supabase?.configured && id) {
-      api.get('/projects/' + id + '/supabase/studio-credentials')
-        .then((r) => setStudioCreds(r.data))
-        .catch(() => setStudioCreds(null));
-    } else {
+    if (!supabase?.configured || !id) {
       setStudioCreds(null);
+      setStudioCredsLoading(false);
+      setStudioCredsError(null);
+      return;
     }
+    setStudioCredsLoading(true);
+    setStudioCredsError(null);
+    api.get('/projects/' + id + '/supabase/studio-credentials')
+      .then((r) => {
+        setStudioCreds(r.data);
+        setStudioCredsError(null);
+      })
+      .catch((e: any) => {
+        setStudioCreds(null);
+        setStudioCredsError(e?.response?.data?.message || 'Unable to load credentials');
+      })
+      .finally(() => setStudioCredsLoading(false));
   }, [supabase?.configured, id]);
 
   useEffect(() => {
@@ -101,7 +119,11 @@ export default function ProjectDetail() {
         {supabase?.configured ? (
           <div className={styles.studioCreds}>
             <h4>Supabase Studio – copy and use to sign in</h4>
-            {studioCreds ? (
+            {studioCredsLoading ? (
+              <span className={styles.credLoading}>Loading…</span>
+            ) : studioCredsError ? (
+              <span className={styles.credError}>{studioCredsError}</span>
+            ) : studioCreds ? (
               <>
                 <div className={styles.credRow}>
                   <label>URL</label>
@@ -126,9 +148,7 @@ export default function ProjectDetail() {
                 </div>
                 <a href={studioCreds.url} target="_blank" rel="noreferrer" className={styles.studioLink}>Open Studio →</a>
               </>
-            ) : (
-              <span className={styles.credLoading}>Loading…</span>
-            )}
+            ) : null}
           </div>
         ) : (
           <button onClick={async () => {
