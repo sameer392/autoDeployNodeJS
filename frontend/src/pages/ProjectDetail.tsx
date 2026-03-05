@@ -246,7 +246,7 @@ export default function ProjectDetail() {
                 </ul>
               )} />
               {roles.map((r, i) => (
-                <Line key={r} type="monotone" dataKey={r} stroke={palette[i % palette.length]} strokeWidth={r === 'Total' ? 2.5 : 1.5} dot={false} hide={hiddenLines.has(r)} />
+                <Line key={r} type="monotone" dataKey={r} stroke={palette[i % palette.length]} strokeWidth={r === 'Total' ? 2.5 : 1.5} dot={false} strokeOpacity={hiddenLines.has(r) ? 0 : 1} />
               ))}
             </LineChart>
           </ResponsiveContainer>
@@ -270,7 +270,7 @@ export default function ProjectDetail() {
                 </ul>
               )} />
               {roles.map((r, i) => (
-                <Line key={r} type="monotone" dataKey={r} stroke={palette[i % palette.length]} strokeWidth={r === 'Total' ? 2.5 : 1.5} dot={false} hide={hiddenLines.has(r)} />
+                <Line key={r} type="monotone" dataKey={r} stroke={palette[i % palette.length]} strokeWidth={r === 'Total' ? 2.5 : 1.5} dot={false} strokeOpacity={hiddenLines.has(r) ? 0 : 1} />
               ))}
             </LineChart>
           </ResponsiveContainer>
