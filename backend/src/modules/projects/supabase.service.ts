@@ -27,16 +27,30 @@ export class SupabaseService {
 
   /**
    * Get Supabase Studio URL (plain, no credentials in URL).
+   * When shared Supabase is running, returns the shared Studio URL (one Studio for all projects).
    */
   async getStudioUrl(project: Project): Promise<string | null> {
     const ev = await this.envVarRepo.findOne({
       where: { projectId: project.id, key: 'VITE_SUPABASE_URL' },
     });
-    return ev?.value || null;
+    if (!ev?.value) return null;
+    const hostingRoot =
+      process.env.HOSTING_PANEL_ROOT ||
+      path.resolve(process.cwd(), process.cwd().endsWith('backend') ? '..' : '.');
+    const sharedEnvPath = path.join(hostingRoot, 'infra', 'supabase', 'shared', '.env');
+    try {
+      const content = await fs.readFile(sharedEnvPath, 'utf-8');
+      const base = content.match(/SUPABASE_SHARED_BASE_DOMAIN=(.+)/m)?.[1]?.trim();
+      if (base) return `https://supabase.${base}`;
+    } catch {
+      /* shared not used */
+    }
+    return ev.value;
   }
 
   /**
    * Get Studio login credentials for manual copy/paste (URL, username, password).
+   * When shared, credentials come from shared/.env.
    */
   async getStudioCredentials(project: Project): Promise<{ url: string; username: string; password: string } | null> {
     const url = await this.getStudioUrl(project);
@@ -44,9 +58,13 @@ export class SupabaseService {
     const hostingRoot =
       process.env.HOSTING_PANEL_ROOT ||
       path.resolve(process.cwd(), process.cwd().endsWith('backend') ? '..' : '.');
+    const sharedDir = path.join(hostingRoot, 'infra', 'supabase', 'shared');
     const projectDir = path.join(hostingRoot, 'infra', 'supabase', 'projects', project.slug);
     try {
-      const envContent = await fs.readFile(path.join(projectDir, '.env'), 'utf-8');
+      const envPath = (await fs.access(path.join(sharedDir, '.env')).then(() => true).catch(() => false))
+        ? path.join(sharedDir, '.env')
+        : path.join(projectDir, '.env');
+      const envContent = await fs.readFile(envPath, 'utf-8');
       const userMatch = envContent.match(/DASHBOARD_USERNAME=(.+)/m);
       const passMatch = envContent.match(/DASHBOARD_PASSWORD=(.+)/m);
       return {
@@ -100,11 +118,21 @@ export class SupabaseService {
     const hostingRoot =
       process.env.HOSTING_PANEL_ROOT ||
       path.resolve(process.cwd(), process.cwd().endsWith('backend') ? '..' : '.');
-    const scriptPath = path.join(hostingRoot, 'infra', 'supabase', 'create-project.sh');
+    const addProjectPath = path.join(hostingRoot, 'infra', 'supabase', 'add-project-to-supabase.sh');
+    const createProjectPath = path.join(hostingRoot, 'infra', 'supabase', 'create-project.sh');
+    const sharedDbRunning = await execAsync(
+      "docker ps --format '{{.Names}}' 2>/dev/null | grep -q '^supabase-shared-db$' && echo yes || echo no",
+      { shell: '/bin/bash' },
+    ).then(({ stdout }) => stdout.trim() === 'yes').catch(() => false);
+
+    const useShared = sharedDbRunning && await fs.access(addProjectPath).then(() => true).catch(() => false);
+    const scriptPath = useShared ? addProjectPath : createProjectPath;
     const exists = await fs.access(scriptPath).then(() => true).catch(() => false);
     if (!exists) {
       throw new BadRequestException(
-        'Supabase setup script not found. Ensure infra/supabase/create-project.sh exists.',
+        useShared
+          ? 'Add-project script not found. Ensure infra/supabase/add-project-to-supabase.sh exists.'
+          : 'Supabase setup script not found. Ensure infra/supabase/create-project.sh exists.',
       );
     }
 
@@ -166,10 +194,11 @@ export class SupabaseService {
     try {
       const entries = await fs.readdir(migrationsDir);
       const sqlFiles = entries.filter((f) => f.endsWith('.sql')).sort();
-      const dbContainer = `supabase-${supabaseSlug}-db`;
+      const dbContainer = useShared ? 'supabase-shared-db' : `supabase-${supabaseSlug}-db`;
+      const projectDb = useShared ? `project_${supabaseSlug}` : 'postgres';
       for (const f of sqlFiles) {
         const p = path.join(migrationsDir, f);
-        await execAsync(`docker exec -i ${dbContainer} psql -U postgres < "${p}"`, {
+        await execAsync(`docker exec -i ${dbContainer} psql -U postgres -d ${projectDb} < "${p}"`, {
           timeout: 60000,
           shell: '/bin/bash',
         });

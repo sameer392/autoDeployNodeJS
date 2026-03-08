@@ -17,6 +17,7 @@ import { Log } from './database/entities/log.entity';
 import { ResourceStats } from './database/entities/resource-stats.entity';
 import { ResourceStatsModule } from './modules/resource-stats/resource-stats.module';
 import { ServerModule } from './modules/server/server.module';
+import { SupabaseSharedModule } from './modules/supabase-shared/supabase-shared.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { ServerModule } from './modules/server/server.module';
     LogsModule,
     ResourceStatsModule,
     ServerModule,
+    SupabaseSharedModule,
   ],
 })
 export class AppModule {}

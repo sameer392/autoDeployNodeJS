@@ -1,6 +1,21 @@
-# Supabase Per-Domain (Multi-Project)
+# Supabase for Hosting Panel
 
-Each domain/project gets its own Supabase instance with isolated:
+## Shared Supabase (Recommended – like MySQL + phpMyAdmin)
+
+One Supabase stack for all projects. Set up once from the main Dashboard, then add project DBs from each project page.
+
+- **Main page**: "Setup Shared Supabase" – one-time setup
+- **Project page**: "Setup Supabase" – adds this project's DB to the shared stack
+
+**Resource usage**: ~12 shared containers + 2 per project (PostgREST, Realtime) instead of ~12 per project.
+
+See [SHARED-SUPABASE-DESIGN.md](SHARED-SUPABASE-DESIGN.md) for architecture.
+
+---
+
+## Per-Domain (Legacy)
+
+Each domain/project gets its own full Supabase instance with isolated:
 - PostgreSQL database
 - Auth (GoTrue)
 - Storage

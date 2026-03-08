@@ -15,6 +15,12 @@ interface Project {
   domains?: { domain: string }[];
 }
 
+interface SharedSupabaseStatus {
+  running: boolean;
+  studioUrl?: string;
+  apiDomain?: string;
+}
+
 interface ServerStatsPayload {
   byProject: Record<string, { name: string; cpu: number; memoryMb: number }>;
   otherDocker: { cpu: number; memoryMb: number };
@@ -32,6 +38,10 @@ export default function Dashboard() {
     Array<ServerStatsPayload & { i: number }>
   >([]);
   const [hiddenLines, setHiddenLines] = useState<Set<string>>(new Set());
+  const [supabaseStatus, setSupabaseStatus] = useState<SharedSupabaseStatus | null>(null);
+  const [supabaseSetupDomain, setSupabaseSetupDomain] = useState('');
+  const [supabaseSetupLoading, setSupabaseSetupLoading] = useState(false);
+  const [supabaseSetupError, setSupabaseSetupError] = useState<string | null>(null);
   const indexRef = useRef(0);
 
   const toggleLine = (key: string) => {
@@ -42,6 +52,12 @@ export default function Dashboard() {
       return next;
     });
   };
+
+  useEffect(() => {
+    api.get<SharedSupabaseStatus>('/supabase/shared/status').then((r) => {
+      setSupabaseStatus(r.data);
+    }).catch(() => setSupabaseStatus({ running: false }));
+  }, []);
 
   useEffect(() => {
     api.get('/projects').then((r) => {
@@ -99,6 +115,26 @@ export default function Dashboard() {
   });
   const hasChartData = serverStatsHistory.length > 0;
 
+  const handleSetupSharedSupabase = async () => {
+    const domain = supabaseSetupDomain.trim();
+    if (!domain) {
+      setSupabaseSetupError('Enter your base domain (e.g. pdfsaas.com)');
+      return;
+    }
+    setSupabaseSetupError(null);
+    setSupabaseSetupLoading(true);
+    try {
+      const r = await api.post<{ studioUrl: string; apiDomain: string; message: string }>('/supabase/shared/setup', { domain });
+      setSupabaseStatus({ running: true, studioUrl: r.data.studioUrl, apiDomain: r.data.apiDomain });
+      setSupabaseSetupDomain('');
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { message?: string } } };
+      setSupabaseSetupError(err?.response?.data?.message || 'Setup failed');
+    } finally {
+      setSupabaseSetupLoading(false);
+    }
+  };
+
   return (
     <div className={styles.dashboard}>
       <div className={styles.header}>
@@ -106,6 +142,45 @@ export default function Dashboard() {
         <Link to="/projects/new" className={styles.btn}>
           <Plus size={18} /> New Project
         </Link>
+      </div>
+      <div className={styles.supabaseCard}>
+        <div className={styles.supabaseHeader}>
+          <Database size={20} />
+          <span>Shared Supabase</span>
+        </div>
+        {supabaseStatus?.running ? (
+          <div className={styles.supabaseRunning}>
+            <p>One Supabase stack for all projects (like MySQL + phpMyAdmin)</p>
+            {supabaseStatus.studioUrl && (
+              <a href={supabaseStatus.studioUrl} target="_blank" rel="noopener noreferrer" className={styles.supabaseLink}>
+                <ExternalLink size={14} /> Open Studio
+              </a>
+            )}
+          </div>
+        ) : (
+          <div className={styles.supabaseSetup}>
+            <p>Set up shared Supabase once, then add project DBs from each project page.</p>
+            <div className={styles.supabaseForm}>
+              <input
+                type="text"
+                placeholder="Base domain (e.g. pdfsaas.com)"
+                value={supabaseSetupDomain}
+                onChange={(e) => setSupabaseSetupDomain(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSetupSharedSupabase()}
+                disabled={supabaseSetupLoading}
+              />
+              <button
+                onClick={handleSetupSharedSupabase}
+                disabled={supabaseSetupLoading}
+                className={styles.btn}
+              >
+                {supabaseSetupLoading ? <Loader2 size={18} className={styles.spin} /> : <Database size={18} />}
+                Setup Shared Supabase
+              </button>
+            </div>
+            {supabaseSetupError && <p className={styles.supabaseError}>{supabaseSetupError}</p>}
+          </div>
+        )}
       </div>
       {hasChartData && (
         <div className={styles.serverCharts}>
